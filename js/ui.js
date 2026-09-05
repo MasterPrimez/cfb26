@@ -1,6 +1,8 @@
 import { state, fmtTime, tzLabel } from './state.js';
 import { primaryNetwork, watchSummary } from './networks.js';
 
+export const isMobile = () => window.matchMedia('(max-width: 700px)').matches;
+
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function statusBadge(g) {
@@ -56,7 +58,18 @@ export function gameRow(g) {
   </tr>`;
 }
 
+// Slim one-line-per-game rows for phones.
+export function gameRowMobile(g) {
+  const st = g.state === 'in' ? `<span class="st live">● ${esc(g.detail.replace(/ - /, ' '))}</span>` : g.state === 'post' ? '<span class="st">Final</span>' : g.tbd ? '<span class="st">TBA</span>' : `<span class="st">${fmtTime(g.date)}</span>`;
+  const tm = (t, home) => `<div class="tm"><img src="${esc(t.logo)}" alt="" loading="lazy">${home ? '<span class="muted" style="font-size:10px">@</span>' : ''}${t.rank ? `<span class="rank mono amber" style="font-size:10px">#${t.rank}</span>` : ''}<span class="nm${state.isMine(t.id) ? ' mine' : ''}">${esc(t.name)}</span></div>`;
+  const sc = (t, other) => g.state === 'pre' ? '<div class="sc"></div>' : `<div class="sc${t.score != null && t.score >= (other.score ?? 0) ? ' w' : ''}">${t.score ?? ''}</div>`;
+  const net = primaryNetwork(g.networks);
+  const meta = [net || '', g.state === 'post' ? '' : watchSummary(g.networks, state.myServices).split(' · ')[0], g.odds?.details || ''].filter(Boolean).join(' · ');
+  return `<div class="mrow" data-game="${g.id}">${st}${tm(g.away, false)}${sc(g.away, g.home)}${tm(g.home, true)}${sc(g.home, g.away)}<div class="meta">${esc(meta)}</div></div>`;
+}
+
 export function rowsTable(games) {
+  if (isMobile()) return `<div class="panel">${games.map(gameRowMobile).join('')}</div>`;
   return `<div class="panel rows"><table>
     <thead><tr><th style="width:110px">Status</th><th>Matchup</th><th style="width:80px">Score</th><th>Venue</th><th style="width:70px">TV</th><th style="width:170px">Watch</th><th style="width:80px">Line</th></tr></thead>
     <tbody>${games.map(gameRow).join('')}</tbody></table></div>`;

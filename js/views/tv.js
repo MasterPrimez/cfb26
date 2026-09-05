@@ -1,4 +1,4 @@
-import { esc, filterBar, applyFilter } from '../ui.js';
+import { esc, filterBar, applyFilter, isMobile, gameRowMobile } from '../ui.js';
 import { fmtDay, dayKey, hourOf, tzLabel, state } from '../state.js';
 import { NETWORK_ORDER, networkClass, primaryNetwork, watchSummary } from '../networks.js';
 
@@ -11,10 +11,22 @@ export function renderTV(ctx, params) {
   const days = [...new Set(games.map(g => dayKey(g.date)))].sort();
   const today = dayKey(new Date());
   const day = params.day && days.includes(params.day) ? params.day : (days.includes(today) ? today : (days.find(d => d >= today) || days[days.length - 1]));
+  const view = params.view || (isMobile() ? 'list' : 'grid');
   const dayBtns = days.map(d => { const g = games.find(x => dayKey(x.date) === d); return `<button class="btn${d === day ? ' on' : ''}" data-day="${d}">${esc(fmtDay(g.date).split(',')[0].slice(0, 3))} ${esc(fmtDay(g.date).split(', ')[1] || '')}</button>`; }).join('');
 
   const dayGames = applyFilter(games.filter(g => dayKey(g.date) === day && !g.tbd));
   if (!dayGames.length) return header() + `<div class="panel empty">No games on this day for the current filter.</div>`;
+
+  if (view === 'list') {
+    const nets = new Map();
+    dayGames.forEach(g => { const n = primaryNetwork(g.networks) || 'TBA'; if (!nets.has(n)) nets.set(n, []); nets.get(n).push(g); });
+    const order = n => { const i = NETWORK_ORDER.indexOf(n); return i < 0 ? 100 + n.charCodeAt(0) : i; };
+    const list = [...nets.keys()].sort((a, b) => order(a) - order(b)).map(n => {
+      const gs = nets.get(n).sort((a, b) => a.date - b.date);
+      return `<div class="net-h"><div class="disp ${networkClass(n) === 'espn' ? 'amber' : networkClass(n) === 'minor' ? 'muted' : ''}">${esc(n)}</div><span class="sub">${gs.length} GAME${gs.length === 1 ? '' : 'S'}</span></div><div class="panel">${gs.map(gameRowMobile).join('')}</div>`;
+    }).join('');
+    return header() + `<div class="tvlist">${list}</div><div class="legend"><span>TIMES IN ${tzLabel()} · GROUPED BY NETWORK · TAP A GAME FOR WATCH OPTIONS</span></div>`;
+  }
 
   // Grid bounds: floor of earliest kickoff to ceil of latest kickoff + game length, in half-hour slots.
   const now = new Date();
@@ -53,7 +65,7 @@ export function renderTV(ctx, params) {
 
   function header() {
     return `<div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div></div>
-      <div class="toolbar"><div class="disp h2">${esc(fmtDay(new Date(day + 'T12:00:00')))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${dayBtns}</div></div>
+      <div class="toolbar"><div class="disp h2">${esc(fmtDay(new Date(day + 'T12:00:00')))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${dayBtns}</div><span class="sep"></span><span class="label">View</span><button class="btn${view === 'grid' ? ' on' : ''}" data-view="grid">Grid</button><button class="btn${view === 'list' ? ' on' : ''}" data-view="list">By network</button></div>
       <div class="toolbar">${filterBar()}</div>`;
   }
 }

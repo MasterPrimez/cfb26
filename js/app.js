@@ -39,7 +39,7 @@ function route() {
 let rendering = false;
 async function render() {
   const r = route();
-  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('active', a.dataset.route === r.name || (r.name === 'team' && a.dataset.route === 'teams') || (r.name === 'game' && a.dataset.route === 'scores')));
+  document.querySelectorAll('#nav a, #tabbar a').forEach(a => a.classList.toggle('active', a.dataset.route === r.name || (r.name === 'team' && a.dataset.route === 'teams') || (r.name === 'game' && a.dataset.route === 'scores')));
   if (rendering) return; rendering = true;
   try {
     let html;
@@ -205,7 +205,9 @@ view.addEventListener('click', e => {
   const wk = e.target.closest('[data-week]');
   if (wk) { const w = ctx.calendar.find(x => x.key === wk.dataset.week); if (w) { ctx.weekKey = w.key; loadWeek(w.key).then(() => { render(); renderMyTeams(); statusFromData(); scheduleRefresh(); }); } return; }
   const dy = e.target.closest('[data-day]');
-  if (dy) { location.hash = `#/tv?day=${dy.dataset.day}`; return; }
+  if (dy) { const q = new URLSearchParams(route().params); q.set('day', dy.dataset.day); location.hash = `#/tv?${q}`; return; }
+  const vw = e.target.closest('[data-view]');
+  if (vw) { const q = new URLSearchParams(route().params); q.set('view', vw.dataset.view); location.hash = `#/tv?${q}`; return; }
   const st = e.target.closest('[data-star]');
   if (st) { e.stopPropagation(); state.toggleTeam(st.dataset.star); return; }
   const tt = e.target.closest('[data-team]');
@@ -217,6 +219,9 @@ $('#modal-close').onclick = closeModal;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+// Re-render when crossing the phone/desktop breakpoint (rotation, split view).
+const mq = window.matchMedia('(max-width: 700px)');
+(mq.addEventListener ? mq.addEventListener.bind(mq) : mq.addListener.bind(mq))('change', () => render());
 onChange(() => { render(); renderMyTeams(); });
 
 // ---- Boot ------------------------------------------------------------------

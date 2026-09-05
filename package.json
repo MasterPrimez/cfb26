@@ -1,0 +1,15 @@
+{
+  "name": "cfb26",
+  "version": "1.0.0",
+  "description": "Live scores, kickoff times, venues, TV networks, how-to-watch, rankings, the playoff picture and a channel-guide TV grid for the 2026 FBS season. Static site, no build step, no backend.",
+  "scripts": {
+    "shots": "node tools/shots.mjs iphone"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}

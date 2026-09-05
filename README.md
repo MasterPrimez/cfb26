@@ -23,3 +23,8 @@ Any static server works, e.g. `npx serve .` or `python3 -m http.server 8080`, th
 - ESPN's API is unofficial and unauthenticated. If it ever blocks browser calls, put a small proxy
   (Cloudflare Worker / Vercel function) in front and change `SITE`/`V2` in `js/api.js`.
 - Team ids are ESPN's (Ohio State = 194, Oregon = 2483, Texas = 251, Alabama = 333).
+
+## Phone testing (no ESPN access needed)
+`npm install` once, then `node tools/shots.mjs iphone` screenshots every screen on an emulated iPhone 15 using
+synthetic ESPN-shaped data from `tools/fixtures.mjs` (ESPN blocks datacenter IPs, so real data can't be used in CI).
+Output lands in `shots/iphone/`. `node tools/shots.mjs desktop` does the same at 1440px.

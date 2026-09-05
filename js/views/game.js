@@ -12,6 +12,18 @@ export async function renderGame(ctx, params) {
   try { sum = await api.summary(id); } catch {}
   if (!g && sum?.header?.competitions?.[0]) g = normalizeEvent({ id, name: '', shortName: '', date: sum.header.competitions[0].date, status: sum.header.competitions[0].status, competitions: [{ ...sum.header.competitions[0], venue: sum.gameInfo?.venue, odds: sum.pickcenter }], week: sum.header.week ? { number: sum.header.week } : undefined });
   if (!g) return '<div class="panel empty">Game not found.</div>';
+  // The summary is fresher than the cached scoreboard entry: take status, scores and linescores from it.
+  const hc = sum?.header?.competitions?.[0];
+  if (hc?.status?.type) {
+    const st = hc.status.type;
+    g = { ...g, home: { ...g.home }, away: { ...g.away }, state: st.state, detail: st.shortDetail || st.detail || g.detail, completed: !!st.completed };
+    (hc.competitors || []).forEach(x => {
+      const t = x.homeAway === 'home' ? g.home : g.away;
+      if (x.score != null) t.score = Number(x.score);
+      if (x.linescores) t.linescores = x.linescores.map(l => l.value ?? Number(l.displayValue));
+      t.winner = !!x.winner;
+    });
+  }
 
   const opts = watchOptions(g.networks);
   const mine = state.myServices;
@@ -40,7 +52,7 @@ export async function renderGame(ctx, params) {
   const wp = g.situation?.homeWin != null ? Math.round(g.situation.homeWin * 100) : (sum?.winprobability?.length ? Math.round(sum.winprobability[sum.winprobability.length - 1].homeWinPercentage * 100) : null);
   const venue = sum?.gameInfo?.venue || null;
   const weather = sum?.gameInfo?.weather;
-  const side = (t, right) => `<div class="side${right ? ' r' : ''}">${right ? '' : `<img src="${esc(t.logo)}" alt="">`}<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><div class="mono amber" style="font-size:12px">${t.rank ? '#' + t.rank + ' · ' : ''}${right ? 'HOME' : (g.neutral ? 'NEUTRAL' : 'AWAY')}</div><div class="disp big"><a href="#/team/${t.id}" style="color:inherit">${esc(t.fullName)}</a></div><div class="sub">${esc(t.record)}${t.confRecord ? ' · ' + esc(t.confRecord) + ' conf' : ''}</div></div>${right ? `<img src="${esc(t.logo)}" alt="">` : ''}</div>`;
+  const side = (t, right) => `<div class="side${right ? ' r' : ''}">${right ? '' : `<img src="${esc(t.logo)}" alt="">`}<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><div class="mono amber" style="font-size:12px">${t.rank ? '#' + t.rank + ' · ' : ''}${right ? 'HOME' : (g.neutral ? 'NEUTRAL' : 'AWAY')}</div><div class="disp big"><a href="#/team/${t.id}" style="color:inherit"><span class="nm-full">${esc(t.fullName)}</span><span class="nm-short">${esc(t.name)}</span></a></div><div class="sub">${esc(t.record)}${t.confRecord ? ' · ' + esc(t.confRecord) + ' conf' : ''}</div></div>${right ? `<img src="${esc(t.logo)}" alt="">` : ''}</div>`;
 
   return `<div class="sub" style="margin-bottom:6px"><a href="#/scores">← Scores</a></div>
     <div class="game-head" style="background:linear-gradient(90deg,${g.away.color}22 0%,transparent 40%,transparent 60%,${g.home.color}22 100%)">

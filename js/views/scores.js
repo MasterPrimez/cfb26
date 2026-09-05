@@ -1,4 +1,4 @@
-import { esc, gameCard, rowsTable, filterBar, applyFilter, isFeatured } from '../ui.js';
+import { esc, gameCard, rowsTable, filterBar, applyFilter, isFeatured, isMobile } from '../ui.js';
 import { fmtDay, dayKey, state } from '../state.js';
 import { rankingsPanel, playoffPanel, tonightPanel } from './panels.js';
 
@@ -35,11 +35,11 @@ export function renderScores(ctx) {
     <div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div></div>
     <div class="toolbar">${filterBar()}</div>
     <div class="grid-main">
+      ${isMobile() ? tonightPanel(games) : ''}
       <div>${days || `<div class="panel empty">No games match this filter${state.prefs.filter === 'mine' && !state.prefs.teams.length ? ' — pick your teams under My Setup' : ''}.</div>`}</div>
       <aside class="rail">
-        ${playoffPanel(playoff, rankings)}
-        ${rankingsPanel(rankings)}
-        ${tonightPanel(games)}
+        ${isMobile() ? '' : playoffPanel(playoff, rankings) + rankingsPanel(rankings)}
+        ${isMobile() ? '' : tonightPanel(games)}
       </aside>
     </div>`;
 }
