@@ -181,6 +181,7 @@ function openModal() {
         <div class="pick-list">${teams.map(t => `<div class="panel team-tile" data-star="${t.id}"><img src="${esc(t.logo)}" alt="" loading="lazy"><span class="nm">${esc(t.name)} <span class="muted" style="font-size:11px">${esc(t.conf.abbr)}</span></span><span class="star${state.isMine(t.id) ? ' on' : ''}">★</span></div>`).join('') || '<div class="sub">Loading teams…</div>'}</div></div>
       <div><div class="section-title">My Streaming Services</div><div class="sub" style="margin-bottom:8px">Pick what you subscribe to and every game will show you the way you can actually watch it.</div>
         <div class="opts">${Object.values(SERVICES).map(s => `<button class="btn${state.myServices.has(s.id) ? ' on' : ''}" data-service="${s.id}" type="button">${esc(s.name)}</button>`).join('')}</div></div>
+      <div><div class="section-title">Layout</div><div class="sub" style="margin-bottom:8px">Desktop shows the full layout (including the TV grid) on a phone — pinch to zoom.</div><div class="opts">${[['auto', 'Phone'], ['desktop', 'Desktop']].map(([v, l]) => `<button class="btn${state.prefs.layout === v ? ' on' : ''}" data-layout="${v}" type="button">${l}</button>`).join('')}</div></div>
       <div><div class="section-title">Time Zone</div><div class="opts">${['local', 'pt', 'et'].map(t => `<button class="btn${state.prefs.tz === t ? ' on' : ''}" data-tz="${t}" type="button">${t === 'local' ? 'My device' : t.toUpperCase()}</button>`).join('')}</div></div>
       <div><div class="section-title">Share Your Setup</div><div class="sub" style="margin-bottom:8px">Send this link and whoever opens it starts with your teams already picked.</div><div class="share-url" id="share-url">${esc(state.shareUrl())}</div><div style="margin-top:8px"><button class="btn btn-amber" id="copy-url" type="button">Copy link</button></div></div>
       <div class="sub">Saved on this device. Sign-in to sync across devices is coming next.</div>`;
@@ -192,11 +193,23 @@ function openModal() {
     const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const tz = e.target.closest('[data-tz]'); if (tz) { state.setTz(tz.dataset.tz); draw($('#team-search')?.value.toLowerCase() || ''); return; }
+    const ly = e.target.closest('[data-layout]'); if (ly) { state.setLayout(ly.dataset.layout); applyLayout(); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     if (e.target.id === 'copy-url') { navigator.clipboard?.writeText(state.shareUrl()).then(() => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy link', 1500); }); }
   };
   $('#modal').hidden = false;
 }
 function closeModal() { $('#modal').hidden = true; }
+
+// ---- Layout (phone vs forced desktop) --------------------------------------
+// 'desktop' widens the viewport to 1200 CSS px so phones render the full desktop layout, zoomed out;
+// iOS then lets you pinch to zoom. Changing the meta tag live is honored by Safari and Chrome.
+function applyLayout() {
+  const meta = document.querySelector('meta[name=viewport]');
+  const desktop = state.prefs.layout === 'desktop';
+  const want = desktop ? 'width=1200, viewport-fit=cover' : 'width=device-width, initial-scale=1, viewport-fit=cover';
+  if (meta && meta.content !== want) meta.content = want;
+  document.documentElement.classList.toggle('force-desktop', desktop);
+}
 
 // ---- Global wiring ---------------------------------------------------------
 
@@ -227,6 +240,7 @@ onChange(() => { render(); renderMyTeams(); });
 // ---- Boot ------------------------------------------------------------------
 
 (async function boot() {
+  applyLayout();
   setStatus('', 'LOADING');
   renderMyTeams();
   view.innerHTML = '<div class="panel empty">Loading this week\'s slate…</div>';

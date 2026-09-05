@@ -8,6 +8,7 @@ const defaults = () => ({
   services: [],       // service ids from networks.js
   tz: 'local',        // 'local' | 'pt' | 'et'
   filter: 'all',      // 'all' | 'mine' | 'top25' | 'p4' | conference id
+  layout: 'auto',     // 'auto' (phone layout on phones) | 'desktop' (force desktop layout, pinch to zoom)
 });
 
 let prefs = load();
@@ -20,7 +21,8 @@ function load() {
   if (q.has('teams')) p.teams = q.get('teams').split(',').map(s => s.trim()).filter(Boolean);
   if (q.has('tz')) p.tz = q.get('tz');
   if (q.has('services')) p.services = q.get('services').split(',').filter(Boolean);
-  if (q.has('teams') || q.has('tz') || q.has('services')) {
+  if (q.has('layout')) p.layout = q.get('layout');
+  if (q.has('teams') || q.has('tz') || q.has('services') || q.has('layout')) {
     save(p);
     history.replaceState(null, '', location.pathname + location.hash);
   }
@@ -48,6 +50,7 @@ export const state = {
     emit();
   },
   setTz(tz) { prefs.tz = tz; emit(); },
+  setLayout(l) { prefs.layout = l; emit(); },
   setFilter(f) { prefs.filter = f; emit(); },
   shareUrl() {
     const q = new URLSearchParams();
