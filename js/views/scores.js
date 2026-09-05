@@ -32,7 +32,7 @@ export function renderScores(ctx) {
   }).join('');
 
   return `
-    <div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div></div>
+    <div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div>${weekNote(calendar, week)}</div>
     <div class="toolbar">${filterBar()}</div>
     <div class="grid-main">
       ${isMobile() ? tonightPanel(games) : ''}
@@ -42,4 +42,10 @@ export function renderScores(ctx) {
         ${isMobile() ? '' : tonightPanel(games)}
       </aside>
     </div>`;
+}
+
+function weekNote(calendar, key) {
+  const w = calendar.find(x => x.key === key);
+  if (!w || w.current) return '';
+  return `<span class="sub" style="white-space:nowrap">${esc(w.label)} · ${esc(w.detail)}${w.past ? '' : ' · times/TV firm up ~6 days out'}</span>`;
 }

@@ -10,7 +10,10 @@ export function renderTV(ctx, params) {
 
   const days = [...new Set(games.map(g => dayKey(g.date)))].sort();
   const today = dayKey(new Date());
-  const day = params.day && days.includes(params.day) ? params.day : (days.includes(today) ? today : (days.find(d => d >= today) || days[days.length - 1]));
+  // Default day: today if it's in this week; otherwise the busiest day of the week (Saturday, normally).
+  const count = d => games.filter(g => dayKey(g.date) === d).length;
+  const busiest = days.reduce((a, d) => (count(d) > count(a) ? d : a), days[0]);
+  const day = params.day && days.includes(params.day) ? params.day : (days.includes(today) ? today : busiest);
   const view = params.view || (isMobile() ? 'list' : 'grid');
   const dayBtns = days.map(d => { const g = games.find(x => dayKey(x.date) === d); return `<button class="btn${d === day ? ' on' : ''}" data-day="${d}">${esc(fmtDay(g.date).split(',')[0].slice(0, 3))} ${esc(fmtDay(g.date).split(', ')[1] || '')}</button>`; }).join('');
 
@@ -64,7 +67,8 @@ export function renderTV(ctx, params) {
     <div class="legend"><span><i style="display:inline-block;width:10px;height:10px;border:1px solid var(--live);border-radius:2px;vertical-align:middle;margin-right:6px"></i>LIVE NOW</span><span><i style="display:inline-block;width:10px;height:10px;background:rgba(245,165,36,0.25);vertical-align:middle;margin-right:6px"></i>CURRENT HALF-HOUR</span><span>FINALS DIMMED · COLOR BAR = AWAY (TOP) / HOME (BOTTOM) · BLOCKS RUN ${GAME_HOURS} HRS AND EXTEND WHILE LIVE · TIMES IN ${tzLabel()}</span></div>`;
 
   function header() {
-    return `<div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div></div>
+    const w = calendar.find(x => x.key === week);
+    return `<div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div>${w && !w.current ? `<span class="sub" style="white-space:nowrap">${esc(w.label)} · ${esc(w.detail)}${w.past ? '' : ' · times/TV firm up ~6 days out'}</span>` : ''}</div>
       <div class="toolbar"><div class="disp h2">${esc(fmtDay(new Date(day + 'T12:00:00')))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${dayBtns}</div><span class="sep"></span><span class="label">View</span><button class="btn${view === 'grid' ? ' on' : ''}" data-view="grid">Grid</button><button class="btn${view === 'list' ? ' on' : ''}" data-view="list">By network</button></div>
       <div class="toolbar">${filterBar()}</div>`;
   }
