@@ -1,0 +1,241 @@
+import { api, normalizeEvent, normalizeDirectory } from './api.js';
+import { state, onChange, fmtTime, tzLabel } from './state.js';
+import { esc, wire } from './ui.js';
+import { SERVICES } from './networks.js';
+import { renderScores } from './views/scores.js';
+import { renderTV } from './views/tv.js';
+import { renderRankings } from './views/rankings.js';
+import { renderPlayoff, projectPlayoff } from './views/playoff.js';
+import { renderTeams } from './views/teams.js';
+import { renderTeam } from './views/team.js';
+import { renderGame } from './views/game.js';
+
+const $ = s => document.querySelector(s);
+const view = $('#view');
+
+const ctx = {
+  season: 2026,
+  calendar: [],        // [{key, number, seasontype, short, label, detail, start, end, past, current}]
+  weekKey: null,       // selected week key
+  games: [],           // games for the selected week
+  allGames: new Map(), // every game seen this session, by id
+  rankings: null,      // {polls, ap, cfp}
+  directory: null,     // {teams, confs}
+  playoff: null,
+  updated: null,
+  error: null,
+};
+
+// ---- Routing ---------------------------------------------------------------
+
+function route() {
+  const h = location.hash.replace(/^#\/?/, '') || 'scores';
+  const [path, qs] = h.split('?');
+  const parts = path.split('/');
+  const params = Object.fromEntries(new URLSearchParams(qs || ''));
+  return { name: parts[0] || 'scores', id: parts[1], params };
+}
+
+let rendering = false;
+async function render() {
+  const r = route();
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('active', a.dataset.route === r.name || (r.name === 'team' && a.dataset.route === 'teams') || (r.name === 'game' && a.dataset.route === 'scores')));
+  if (rendering) return; rendering = true;
+  try {
+    let html;
+    switch (r.name) {
+      case 'tv': html = renderTV({ ...ctx, week: ctx.weekKey }, r.params); break;
+      case 'rankings': html = renderRankings(ctx); break;
+      case 'playoff': html = renderPlayoff(ctx); break;
+      case 'teams': html = renderTeams(ctx); break;
+      case 'team': html = ctx.directory ? await renderTeam(ctx, { id: r.id }) : '<div class="panel empty">Loading…</div>'; break;
+      case 'game': html = await renderGame(ctx, { id: r.id }); break;
+      default: html = renderScores({ ...ctx, week: ctx.weekKey });
+    }
+    const y = window.scrollY;
+    view.innerHTML = html;
+    if (r.name === route().name) window.scrollTo(0, Math.min(y, document.body.scrollHeight));
+  } catch (e) {
+    console.error(e);
+    view.innerHTML = `<div class="panel empty">Something went wrong loading this page.<br><span class="muted">${esc(e.message)}</span></div>`;
+  } finally { rendering = false; }
+}
+
+function currentWeek() { return ctx.calendar.find(w => w.key === ctx.weekKey); }
+
+// ---- Data ------------------------------------------------------------------
+
+function buildCalendar(sb) {
+  const cal = sb.leagues?.[0]?.calendar || [];
+  const now = Date.now();
+  const out = [];
+  cal.forEach(block => {
+    const type = Number(block.value); // 1 pre, 2 regular, 3 post
+    if (type !== 2 && type !== 3) return;
+    (block.entries || []).forEach(en => {
+      const number = Number(en.value);
+      const start = new Date(en.startDate), end = new Date(en.endDate);
+      const label = en.label || en.alternateLabel || `Week ${number}`;
+      const short = type === 3 ? (/champ/i.test(label) ? 'CCG' : /bowl/i.test(label) ? 'Bowls' : /playoff|cfp/i.test(label) ? 'CFP' : label.replace(/Week\s*/i, '')) : String(number).padStart(2, '0');
+      out.push({ key: `${type}-${number}`, number, seasontype: type, label, short, detail: en.detail || '', start, end, past: end.getTime() < now, current: start.getTime() <= now && now <= end.getTime() });
+    });
+  });
+  return out;
+}
+
+async function loadWeek(key) {
+  const w = ctx.calendar.find(x => x.key === key) || currentWeek();
+  const sb = await api.scoreboard(w?.number, { seasontype: w?.seasontype, ttl: 20_000 });
+  const games = (sb.events || []).map(normalizeEvent);
+  games.forEach(g => ctx.allGames.set(g.id, g));
+  ctx.games = games;
+  ctx.updated = new Date();
+}
+
+async function loadCore() {
+  const sb = await api.scoreboard(undefined, { ttl: 20_000 });
+  ctx.season = sb.season?.year || ctx.season;
+  ctx.calendar = buildCalendar(sb);
+  const cur = ctx.calendar.find(w => w.current) || ctx.calendar.find(w => !w.past) || ctx.calendar[ctx.calendar.length - 1];
+  ctx.weekKey = ctx.weekKey || cur?.key;
+  const games = (sb.events || []).map(normalizeEvent);
+  games.forEach(g => ctx.allGames.set(g.id, g));
+  if (ctx.weekKey === cur?.key) ctx.games = games; else await loadWeek(ctx.weekKey);
+  ctx.updated = new Date();
+  // Rankings + directory in the background; the scoreboard shouldn't wait on them.
+  Promise.all([
+    api.rankings().then(r => {
+      const polls = (r.rankings || []).filter(p => /^(ap|cfp|usa)$/.test(p.type) || /playoff|AP Top 25|Coaches/i.test(p.name)).map(p => ({ ...p, date: p.date ? new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '' }));
+      const ap = polls.find(p => p.type === 'ap') || polls[0];
+      const cfp = polls.find(p => p.type === 'cfp' || /playoff/i.test(p.name));
+      ctx.rankings = { polls: [cfp, ap, polls.find(p => p.type === 'usa')].filter(Boolean), ap, cfp };
+    }).catch(e => console.warn('rankings', e)),
+    api.standings(ctx.season).then(s => { ctx.directory = normalizeDirectory(s); }).catch(e => console.warn('standings', e)),
+  ]).then(() => { ctx.playoff = projectPlayoff(ctx.rankings, ctx.directory); renderMyTeams(); render(); });
+}
+
+// ---- Status + refresh ------------------------------------------------------
+
+function setStatus(kind, text) {
+  const el = $('#status'); el.className = 'status ' + kind; $('#status-text').textContent = text;
+  $('#foot-updated').textContent = ctx.updated ? `Updated ${fmtTime(ctx.updated)} ${tzLabel()}` : '';
+}
+function statusFromData() {
+  const live = ctx.games.filter(g => g.state === 'in').length;
+  if (ctx.error) return setStatus('err', 'ESPN FEED ERROR · RETRYING');
+  setStatus(live ? 'live' : 'ok', `${live ? live + ' LIVE · ' : ''}UPDATED ${fmtTime(ctx.updated)} · AUTO-REFRESH ${live ? '60S' : '5 MIN'}`);
+}
+
+let timer = null;
+function scheduleRefresh() {
+  clearTimeout(timer);
+  const live = ctx.games.some(g => g.state === 'in');
+  const w = currentWeek();
+  const soon = ctx.games.some(g => g.state === 'pre' && g.date - Date.now() < 15 * 60_000);
+  const ms = (live || soon) ? 60_000 : (w && !w.past ? 5 * 60_000 : 30 * 60_000);
+  timer = setTimeout(refresh, ms);
+}
+async function refresh() {
+  try {
+    await loadWeek(ctx.weekKey);
+    ctx.error = null;
+    const r = route();
+    if (r.name !== 'team' && r.name !== 'teams' && r.name !== 'rankings') await render();
+    renderMyTeams();
+  } catch (e) { ctx.error = e; console.warn(e); }
+  statusFromData();
+  scheduleRefresh();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+
+// ---- My teams strip --------------------------------------------------------
+
+function renderMyTeams() {
+  const el = $('#myteams');
+  const ids = state.prefs.teams;
+  const d = ctx.directory;
+  const chips = ids.map(id => {
+    const t = d?.teams.find(x => x.id === id);
+    const g = ctx.games.find(x => x.home.id === id || x.away.id === id);
+    const me = g && (g.home.id === id ? g.home : g.away);
+    const name = t?.name || me?.name || `Team ${id}`;
+    const logo = t?.logo || me?.logo || `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png`;
+    const rec = me?.record || t?.overall || '';
+    let status = '';
+    if (g) status = g.state === 'in' ? `<span class="down mono" style="font-size:10px">● ${esc(g.detail)}</span>` : g.state === 'post' ? `<span class="mono muted" style="font-size:10px">${me.winner ? 'W' : 'L'} ${g.away.score}–${g.home.score}</span>` : `<span class="mono muted" style="font-size:10px">${g.tbd ? 'TBA' : fmtTime(g.date)}</span>`;
+    return `<a class="chip" href="#/team/${id}"><img src="${esc(logo)}" alt=""><span>${esc(name)}</span><span class="rec">${esc(rec)}</span>${status}</a>`;
+  }).join('');
+  el.innerHTML = `<span class="label">My Teams</span>${chips}<button class="chip add" id="add-team" type="button">${ids.length ? '+ EDIT' : '+ PICK YOUR TEAMS'}</button>`;
+}
+
+// ---- Settings modal --------------------------------------------------------
+
+function openModal() {
+  const d = ctx.directory;
+  const body = $('#modal-body');
+  const draw = (q = '') => {
+    const teams = d ? d.teams.filter(t => !q || t.fullName.toLowerCase().includes(q) || t.abbr.toLowerCase().includes(q)).sort((a, b) => (state.isMine(b.id) - state.isMine(a.id)) || a.name.localeCompare(b.name)) : [];
+    body.innerHTML = `
+      <div><div class="section-title">My Teams</div>
+        <input class="search" id="team-search" placeholder="Search teams…" value="${esc(q)}" autocomplete="off">
+        <div class="pick-list">${teams.map(t => `<div class="panel team-tile" data-star="${t.id}"><img src="${esc(t.logo)}" alt="" loading="lazy"><span class="nm">${esc(t.name)} <span class="muted" style="font-size:11px">${esc(t.conf.abbr)}</span></span><span class="star${state.isMine(t.id) ? ' on' : ''}">★</span></div>`).join('') || '<div class="sub">Loading teams…</div>'}</div></div>
+      <div><div class="section-title">My Streaming Services</div><div class="sub" style="margin-bottom:8px">Pick what you subscribe to and every game will show you the way you can actually watch it.</div>
+        <div class="opts">${Object.values(SERVICES).map(s => `<button class="btn${state.myServices.has(s.id) ? ' on' : ''}" data-service="${s.id}" type="button">${esc(s.name)}</button>`).join('')}</div></div>
+      <div><div class="section-title">Time Zone</div><div class="opts">${['local', 'pt', 'et'].map(t => `<button class="btn${state.prefs.tz === t ? ' on' : ''}" data-tz="${t}" type="button">${t === 'local' ? 'My device' : t.toUpperCase()}</button>`).join('')}</div></div>
+      <div><div class="section-title">Share Your Setup</div><div class="sub" style="margin-bottom:8px">Send this link and whoever opens it starts with your teams already picked.</div><div class="share-url" id="share-url">${esc(state.shareUrl())}</div><div style="margin-top:8px"><button class="btn btn-amber" id="copy-url" type="button">Copy link</button></div></div>
+      <div class="sub">Saved on this device. Sign-in to sync across devices is coming next.</div>`;
+    const inp = $('#team-search'); if (q) { inp.focus(); inp.setSelectionRange(q.length, q.length); }
+  };
+  draw();
+  body.oninput = e => { if (e.target.id === 'team-search') draw(e.target.value.toLowerCase()); };
+  body.onclick = e => {
+    const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
+    const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }
+    const tz = e.target.closest('[data-tz]'); if (tz) { state.setTz(tz.dataset.tz); draw($('#team-search')?.value.toLowerCase() || ''); return; }
+    if (e.target.id === 'copy-url') { navigator.clipboard?.writeText(state.shareUrl()).then(() => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy link', 1500); }); }
+  };
+  $('#modal').hidden = false;
+}
+function closeModal() { $('#modal').hidden = true; }
+
+// ---- Global wiring ---------------------------------------------------------
+
+wire(view);
+view.addEventListener('click', e => {
+  const wk = e.target.closest('[data-week]');
+  if (wk) { const w = ctx.calendar.find(x => x.key === wk.dataset.week); if (w) { ctx.weekKey = w.key; loadWeek(w.key).then(() => { render(); renderMyTeams(); statusFromData(); scheduleRefresh(); }); } return; }
+  const dy = e.target.closest('[data-day]');
+  if (dy) { location.hash = `#/tv?day=${dy.dataset.day}`; return; }
+  const st = e.target.closest('[data-star]');
+  if (st) { e.stopPropagation(); state.toggleTeam(st.dataset.star); return; }
+  const tt = e.target.closest('[data-team]');
+  if (tt && !e.target.closest('[data-star]')) { location.hash = `#/team/${tt.dataset.team}`; return; }
+});
+$('#btn-settings').onclick = openModal;
+$('#myteams').addEventListener('click', e => { if (e.target.closest('#add-team')) openModal(); });
+$('#modal-close').onclick = closeModal;
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+onChange(() => { render(); renderMyTeams(); });
+
+// ---- Boot ------------------------------------------------------------------
+
+(async function boot() {
+  setStatus('', 'LOADING');
+  renderMyTeams();
+  view.innerHTML = '<div class="panel empty">Loading this week\'s slate…</div>';
+  try {
+    await loadCore();
+    ctx.playoff = projectPlayoff(ctx.rankings, ctx.directory);
+    await render();
+    renderMyTeams();
+    statusFromData();
+  } catch (e) {
+    console.error(e);
+    ctx.error = e;
+    setStatus('err', 'ESPN FEED UNAVAILABLE');
+    view.innerHTML = `<div class="panel empty">Couldn't reach the scoreboard feed.<br><span class="muted">${esc(e.message)}</span><br><br><button class="btn btn-amber" onclick="location.reload()">Retry</button></div>`;
+  }
+  scheduleRefresh();
+})();

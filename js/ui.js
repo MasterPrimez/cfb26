@@ -1,0 +1,97 @@
+import { state, fmtTime, tzLabel } from './state.js';
+import { primaryNetwork, watchSummary } from './networks.js';
+
+export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+export function statusBadge(g) {
+  if (g.state === 'in') return `<span class="badge live">● ${esc(g.detail)}</span>`;
+  if (g.state === 'post') return `<span class="badge final">${esc(g.detail || 'Final')}</span>`;
+  if (g.tbd) return `<span class="badge">TBA</span>`;
+  return `<span class="badge">${fmtTime(g.date)} ${tzLabel()}</span>`;
+}
+
+function teamRow(t, g, isHome) {
+  const leading = g.state !== 'pre' && t.score != null && t.score > (isHome ? g.away.score : g.home.score);
+  const poss = g.state === 'in' && g.situation && g.situation.possession === t.id ? '<span class="poss">◀</span>' : '';
+  const cls = ['team-row', g.state === 'post' && t.winner ? 'winner' : '', g.state === 'in' && leading ? 'leading' : ''].join(' ');
+  const mine = state.isMine(t.id) ? ' mine' : '';
+  return `<div class="${cls}">
+    <img src="${esc(t.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+    <div class="tn">
+      <div class="name${mine}">${t.rank ? `<span class="rank">#${t.rank}</span>` : ''}<a href="#/team/${t.id}" onclick="event.stopPropagation()">${esc(t.name)}</a></div>
+      <div class="rec">${esc(t.record)}${t.confRecord ? ' · ' + esc(t.confRecord) + ' conf' : ''}</div>
+    </div>
+    <div class="score">${g.state === 'pre' ? '—' : (t.score ?? '—')}${poss}</div>
+  </div>`;
+}
+
+export function gameCard(g) {
+  const net = primaryNetwork(g.networks);
+  const venue = g.venue ? `${esc(g.venue.name)}${g.venue.city ? ' · ' + esc(g.venue.city) + (g.venue.state ? ', ' + esc(g.venue.state) : '') : ''}` : '';
+  const watch = g.state === 'post' ? 'Box score →' : 'Watch: ' + esc(watchSummary(g.networks, state.myServices));
+  const line = g.odds?.details ? esc(g.odds.details) : '';
+  const sit = g.state === 'in' && g.situation?.text ? `<span class="sub">${esc(g.situation.text)}</span>` : '';
+  return `<div class="panel card${g.state === 'in' ? ' live' : ''}" data-game="${g.id}">
+    <div class="card-top">${statusBadge(g)}${sit}<span class="spacer"></span>${net ? `<span class="badge net">${esc(net)}</span>` : ''}</div>
+    ${teamRow(g.away, g, false)}
+    ${teamRow(g.home, g, true)}
+    <div class="hr"></div>
+    <div class="card-foot"><span>${venue}${g.neutral ? ' · Neutral' : ''}</span><span>${watch}</span>${line ? `<span class="r">${line}</span>` : ''}</div>
+  </div>`;
+}
+
+export function gameRow(g) {
+  const net = primaryNetwork(g.networks);
+  const venue = g.venue ? `${esc(g.venue.name)}${g.venue.city ? ' · ' + esc(g.venue.city) + ', ' + esc(g.venue.state || '') : ''}` : '';
+  const score = g.state === 'pre' ? '<span class="muted">—</span>' : `${g.away.score ?? ''}–${g.home.score ?? ''}`;
+  const tm = t => `${t.rank ? `<span class="amber mono" style="font-size:11px">#${t.rank}</span> ` : ''}<span${state.isMine(t.id) ? ' class="mine"' : ''}>${esc(t.name)}</span>`;
+  return `<tr class="rowlink" data-game="${g.id}">
+    <td>${statusBadge(g)}</td>
+    <td>${tm(g.away)} <span class="muted">${g.neutral ? 'vs' : 'at'}</span> ${tm(g.home)}</td>
+    <td class="mono">${score}</td>
+    <td class="muted">${venue}</td>
+    <td class="mono">${esc(net)}</td>
+    <td class="muted">${g.state === 'post' ? 'Box score →' : esc(watchSummary(g.networks, state.myServices))}</td>
+    <td class="mono muted">${esc(g.odds?.details || '')}</td>
+  </tr>`;
+}
+
+export function rowsTable(games) {
+  return `<div class="panel rows"><table>
+    <thead><tr><th style="width:110px">Status</th><th>Matchup</th><th style="width:80px">Score</th><th>Venue</th><th style="width:70px">TV</th><th style="width:170px">Watch</th><th style="width:80px">Line</th></tr></thead>
+    <tbody>${games.map(gameRow).join('')}</tbody></table></div>`;
+}
+
+export function filterBar(extra = '') {
+  const f = state.prefs.filter;
+  const b = (id, label) => `<button class="btn${f === id ? ' on' : ''}" data-filter="${id}">${label}</button>`;
+  return `<span class="label">Show</span>${b('all', 'All FBS')}${b('mine', 'My Teams')}${b('top25', 'Top 25')}${b('p4', 'Power 4')}${b('8', 'SEC')}${b('5', 'Big Ten')}${b('4', 'Big 12')}${b('1', 'ACC')}
+    <span class="sep"></span><span class="label">Time</span>${['local', 'pt', 'et'].map(t => `<button class="btn${state.prefs.tz === t ? ' on' : ''}" data-tz="${t}">${t === 'local' ? 'Local' : t.toUpperCase()}</button>`).join('')}${extra}`;
+}
+
+export function applyFilter(games) {
+  const f = state.prefs.filter;
+  const mine = state.myTeams;
+  if (f === 'mine') return games.filter(g => mine.has(g.home.id) || mine.has(g.away.id));
+  if (f === 'top25') return games.filter(g => g.home.rank || g.away.rank);
+  if (f === 'p4') return games.filter(g => ['1', '4', '5', '8'].includes(g.home.conferenceId) || ['1', '4', '5', '8'].includes(g.away.conferenceId));
+  if (/^\d+$/.test(f)) return games.filter(g => g.home.conferenceId === f || g.away.conferenceId === f);
+  return games;
+}
+
+export function isFeatured(g) {
+  const mine = state.myTeams;
+  return mine.has(g.home.id) || mine.has(g.away.id) || !!g.home.rank || !!g.away.rank;
+}
+
+// Wire clicks inside a view: game rows/cards → game page, filter/tz buttons → state.
+export function wire(root) {
+  root.addEventListener('click', e => {
+    const gm = e.target.closest('[data-game]');
+    if (gm && !e.target.closest('a')) { location.hash = `#/game/${gm.dataset.game}`; return; }
+    const fb = e.target.closest('[data-filter]');
+    if (fb) { state.setFilter(fb.dataset.filter); return; }
+    const tb = e.target.closest('[data-tz]');
+    if (tb) { state.setTz(tb.dataset.tz); return; }
+  });
+}
