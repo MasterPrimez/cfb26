@@ -6,7 +6,7 @@ compatibility_date = "2026-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "cfb26"
-database_id = "REPLACE_ME"
+database_id = "39c6c034-aaa3-46ed-9a46-c93516852701"
 
 [vars]
 # Browser origins allowed to call this API (comma-separated).
