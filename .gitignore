@@ -2,3 +2,5 @@ dist/
 shots/
 node_modules/
 .DS_Store
+tools/logos/
+tour/

@@ -19,7 +19,9 @@ const CONF = { '1': ['acc', 'Atlantic Coast Conference'], '4': ['big12', 'Big 12
 const NETS = ['ABC', 'CBS', 'FOX', 'NBC', 'ESPN', 'ESPN2', 'ESPNU', 'FS1', 'CW', 'TNT', 'USA Net', 'SEC Network', 'ACC Network', 'BTN', 'CBSSN', 'ESPN+', 'SECN+', 'Peacock'];
 const VENUES = [['Ohio Stadium', 'Columbus', 'OH'], ['Autzen Stadium', 'Eugene', 'OR'], ['Sanford Stadium', 'Athens', 'GA'], ['Rose Bowl', 'Pasadena', 'CA'], ['Los Angeles Memorial Coliseum', 'Los Angeles', 'CA'], ['Kyle Field', 'College Station', 'TX'], ['Tiger Stadium', 'Baton Rouge', 'LA']];
 
-const team = (t, i) => ({ id: t[0], uid: 's:20~l:23~t:' + t[0], location: t[1], name: 'Mascots', abbreviation: t[2], displayName: t[1] + ' Mascots', shortDisplayName: t[1], color: t[3], alternateColor: 'ffffff', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png`, logos: [{ href: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` }], conferenceId: t[4] });
+const NICK = { '194': 'Buckeyes', '2483': 'Ducks', '61': 'Bulldogs', '87': 'Fighting Irish', '251': 'Longhorns', '84': 'Hoosiers', '2390': 'Hurricanes', '245': 'Aggies', '145': 'Rebels', '201': 'Sooners', '99': 'Tigers', '2641': 'Red Raiders', '333': 'Crimson Tide', '252': 'Cougars', '130': 'Wolverines', '264': 'Huskies', '213': 'Nittany Lions', '2567': 'Mustangs', '2633': 'Volunteers', '30': 'Trojans', '254': 'Utes', '2294': 'Hawkeyes', '248': 'Cougars', '97': 'Cardinals', '142': 'Tigers', '68': 'Broncos', '228': 'Tigers', '26': 'Bruins', '9': 'Sun Devils', '2306': 'Wildcats', '2050': 'Cardinals', '2582': 'Bobcats', '2653': 'Golden Hurricane', '2229': 'Owls', '2226': 'Golden Flashes', '2348': 'Chanticleers' };
+const nk = id => NICK[id] || 'Mascots';
+const team = (t, i) => ({ id: t[0], uid: 's:20~l:23~t:' + t[0], location: t[1], name: nk(t[0]), abbreviation: t[2], displayName: t[1] + ' ' + nk(t[0]), shortDisplayName: t[1], color: t[3], alternateColor: 'ffffff', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png`, logos: [{ href: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` }], conferenceId: t[4] });
 
 export function scoreboard({ now = new Date(), week = 1 } = {}) {
   const sat = new Date(now); sat.setHours(9, 0, 0, 0);
@@ -52,14 +54,14 @@ export function scoreboard({ now = new Date(), week = 1 } = {}) {
 }
 
 export function rankings() {
-  const ranks = TEAMS.slice(0, 25).map((t, i) => ({ current: i + 1, previous: i === 4 ? 7 : i + 1, trend: i === 4 ? '+2' : '-', points: 1600 - i * 55, firstPlaceVotes: i === 0 ? 40 : 0, recordSummary: '1-0', team: { id: t[0], nickname: t[1], name: 'Mascots', abbreviation: t[2], logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` } }));
-  const others = TEAMS.slice(25, 30).map((t, i) => ({ points: 80 - i * 10, team: { id: t[0], nickname: t[1], name: 'Mascots', logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` } }));
+  const ranks = TEAMS.slice(0, 25).map((t, i) => ({ current: i + 1, previous: i === 4 ? 7 : i + 1, trend: i === 4 ? '+2' : '-', points: 1600 - i * 55, firstPlaceVotes: i === 0 ? 40 : 0, recordSummary: '1-0', team: { id: t[0], nickname: t[1], name: nk(t[0]), abbreviation: t[2], logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` } }));
+  const others = TEAMS.slice(25, 30).map((t, i) => ({ points: 80 - i * 10, team: { id: t[0], nickname: t[1], name: nk(t[0]), logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` } }));
   const base = { occurrence: { displayValue: 'Week 2', number: 2, type: 'week', value: '2' }, date: '2026-09-01T00:00Z', ranks, others };
   return { rankings: [{ id: '1', name: 'AP Top 25', shortName: 'AP Poll', type: 'ap', ...base }, { id: '2', name: 'AFCA Coaches Poll', shortName: 'AFCA Coaches Poll', type: 'usa', ...base }] };
 }
 
 export function standings() {
-  const children = Object.entries(CONF).map(([id, [abbr, name]]) => ({ id, name, abbreviation: abbr, standings: { entries: TEAMS.filter(t => t[4] === id).map(t => ({ team: { id: t[0], location: t[1], name: 'Mascots', abbreviation: t[2], displayName: t[1] + ' Mascots', shortDisplayName: t[1], logos: [{ href: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` }] }, stats: [{ name: 'wins', type: 'wins', value: 1, displayValue: '1' }, { name: 'overall', type: 'total', displayValue: '1-0' }, { name: 'overall', type: 'vsconf', displayValue: '0-0' }, { name: 'streak', type: 'streak', displayValue: 'W1' }, { name: 'pointsFor', type: 'pointsfor', value: 42 }, { name: 'pointsAgainst', type: 'pointsagainst', value: 10 }] })) } }));
+  const children = Object.entries(CONF).map(([id, [abbr, name]]) => ({ id, name, abbreviation: abbr, standings: { entries: TEAMS.filter(t => t[4] === id).map(t => ({ team: { id: t[0], location: t[1], name: nk(t[0]), abbreviation: t[2], displayName: t[1] + ' ' + nk(t[0]), shortDisplayName: t[1], logos: [{ href: `https://a.espncdn.com/i/teamlogos/ncaa/500/${t[0]}.png` }] }, stats: [{ name: 'wins', type: 'wins', value: 1, displayValue: '1' }, { name: 'overall', type: 'total', displayValue: '1-0' }, { name: 'overall', type: 'vsconf', displayValue: '0-0' }, { name: 'streak', type: 'streak', displayValue: 'W1' }, { name: 'pointsFor', type: 'pointsfor', value: 42 }, { name: 'pointsAgainst', type: 'pointsagainst', value: 10 }] })) } }));
   return { children };
 }
 
