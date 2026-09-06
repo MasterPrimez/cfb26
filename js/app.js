@@ -166,7 +166,7 @@ function renderMyTeams() {
     const g = ctx.games.find(x => x.home.id === id || x.away.id === id);
     const me = g && (g.home.id === id ? g.home : g.away);
     const name = t?.name || me?.name || `Team ${id}`;
-    const logo = t?.logo || me?.logo || `https://a.espncdn.com/i/teamlogos/ncaa/500/${id}.png`;
+    const logo = t?.logo || me?.logo || `https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${id}.png`;
     const rec = me?.record || t?.overall || '';
     let status = '';
     if (g) status = g.state === 'in' ? `<span class="down mono" style="font-size:10px">● ${esc(g.detail)}</span>` : g.state === 'post' ? `<span class="mono muted" style="font-size:10px">${me.winner ? 'W' : 'L'} ${g.away.score}–${g.home.score}</span>` : `<span class="mono muted" style="font-size:10px">${g.tbd ? 'TBA' : fmtTime(g.date)}</span>`;

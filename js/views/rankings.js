@@ -1,4 +1,5 @@
 import { esc } from '../ui.js';
+import { darkLogo } from '../api.js';
 import { state } from '../state.js';
 
 export function renderRankings(ctx) {
@@ -8,7 +9,7 @@ export function renderRankings(ctx) {
     <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px"><div class="disp h3">${esc(p.name)}</div><div class="sub">${esc(p.occurrence?.displayValue || '')}${p.date ? ' · ' + esc(p.date) : ''}</div></div>
     <div class="rank-list">${p.ranks.map(r => `<div class="rank-row">
       <span class="n${r.current <= 12 ? ' top' : ''}">${r.current}</span>
-      <img src="${esc(r.team.logo)}" alt="" loading="lazy">
+      <img src="${esc(darkLogo(r.team.logo))}" alt="" loading="lazy">
       <a class="nm" href="#/team/${r.team.id}"${state.isMine(r.team.id) ? ' style="color:var(--amber)"' : ''}>${esc(r.team.nickname)} <span class="muted" style="font-size:12px">${esc(r.team.name)}</span></a>
       <span class="rec">${esc(r.recordSummary || '')}</span>
       <span class="rec" style="width:44px;text-align:right">${r.points ? Math.round(r.points) : ''}</span>

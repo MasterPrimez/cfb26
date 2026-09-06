@@ -42,7 +42,7 @@ export function normalizeEvent(e) {
     abbr: x.team.abbreviation,
     name: x.team.shortDisplayName || x.team.location || x.team.displayName,
     fullName: x.team.displayName,
-    logo: x.team.logo || (x.team.logos && x.team.logos[0]?.href) || logoUrl(x.team.id),
+    logo: darkLogo(x.team.logo) || pickLogo(x.team),
     color: '#' + (x.team.color || '333333'),
     rank: x.curatedRank && x.curatedRank.current && x.curatedRank.current <= 25 ? x.curatedRank.current : null,
     score: x.score != null ? Number(x.score) : null,
@@ -80,8 +80,16 @@ export function normalizeEvent(e) {
   };
 }
 
-export function logoUrl(teamId, dark = false) {
+export function logoUrl(teamId, dark = true) {
   return `https://a.espncdn.com/i/teamlogos/ncaa/500${dark ? '-dark' : ''}/${teamId}.png`;
+}
+// ESPN's default logos are drawn for white backgrounds (dark lettering); the -dark set is for dark UIs.
+export const darkLogo = u => (u || '').replace('/teamlogos/ncaa/500/', '/teamlogos/ncaa/500-dark/');
+// Prefer the 'dark' entry of a team's logos[] when present.
+export function pickLogo(team) {
+  const l = team?.logos || [];
+  const d = l.find(x => (x.rel || []).includes('dark'))?.href;
+  return d || darkLogo(l[0]?.href || team?.logo || '') || logoUrl(team?.id);
 }
 
 // Team directory from standings: [{id, name, abbr, logo, conf: {id, name, abbr}}]
@@ -95,7 +103,7 @@ export function normalizeDirectory(standings) {
         const stat = n => en.stats.find(s => s.name === n || s.type === n);
         teams.push({
           id: t.id, name: t.shortDisplayName || t.location, fullName: t.displayName, abbr: t.abbreviation,
-          logo: (t.logos && t.logos[0]?.href) || logoUrl(t.id),
+          logo: pickLogo(t),
           conf,
           overall: stat('overall')?.displayValue || stat('total')?.displayValue || '',
           confRec: en.stats.find(s => s.type === 'vsconf')?.displayValue || '',

@@ -1,4 +1,5 @@
 import { esc } from '../ui.js';
+import { darkLogo } from '../api.js';
 import { state } from '../state.js';
 
 // 12-team CFP with straight seeding (since 2025): the 5 highest-ranked conference champions get
@@ -12,10 +13,10 @@ export function projectPlayoff(rankings, directory) {
   const byId = new Map(directory.teams.map(t => [t.id, t]));
   const ranked = poll.ranks.map(r => {
     const d = byId.get(String(r.team.id));
-    return { id: String(r.team.id), name: r.team.nickname || r.team.name, logo: r.team.logo, record: r.recordSummary || d?.overall || '', rank: r.current, trend: Number(r.trend) || 0, conf: d?.conf?.id, confAbbr: d?.conf?.abbr || '' };
+    return { id: String(r.team.id), name: r.team.nickname || r.team.name, logo: darkLogo(r.team.logo), record: r.recordSummary || d?.overall || '', rank: r.current, trend: Number(r.trend) || 0, conf: d?.conf?.id, confAbbr: d?.conf?.abbr || '' };
   });
   // Also consider ranked "others receiving votes" so a G5 leader can show up when unranked.
-  const others = (poll.others || []).map((o, i) => { const d = byId.get(String(o.team.id)); return { id: String(o.team.id), name: o.team.nickname || o.team.name, logo: o.team.logo || d?.logo, record: d?.overall || '', rank: 26 + i, trend: 0, conf: d?.conf?.id, confAbbr: d?.conf?.abbr || '', points: o.points }; });
+  const others = (poll.others || []).map((o, i) => { const d = byId.get(String(o.team.id)); return { id: String(o.team.id), name: o.team.nickname || o.team.name, logo: darkLogo(o.team.logo) || d?.logo, record: d?.overall || '', rank: 26 + i, trend: 0, conf: d?.conf?.id, confAbbr: d?.conf?.abbr || '', points: o.points }; });
   const pool = [...ranked, ...others];
 
   // Highest-ranked team per conference (independents can't be champions).

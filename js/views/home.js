@@ -1,7 +1,7 @@
 // Story home: one favorite team, one idea per screen, scroll to reveal. Everything is live from ESPN
 // except the pre-game win probability, which we compute (Vegas line when there is one, else season stats).
 import { esc } from '../ui.js';
-import { api, normalizeEvent, logoUrl } from '../api.js';
+import { api, normalizeEvent, logoUrl, pickLogo } from '../api.js';
 import { state, fmtTime, fmtDay, tzLabel, dayKey } from '../state.js';
 import { primaryNetwork, watchSummary } from '../networks.js';
 
@@ -23,7 +23,7 @@ export async function loadHome(ctx, teamId) {
   const rec = td.record?.items?.find(i => i.type === 'total') || td.record?.items?.[0];
   const stat = n => Number(rec?.stats?.find(s => s.name === n)?.value ?? 0);
   const gp = stat('gamesPlayed');
-  const team = { id: String(teamId), name: td.shortDisplayName || td.location, fullName: td.displayName, abbr: td.abbreviation, logo: td.logos?.[0]?.href || logoUrl(teamId), color: '#' + (td.color || '333333'), alt: '#' + (td.alternateColor || 'ffffff'), record: rec?.summary || dir?.overall || '0-0', wins: stat('wins'), losses: stat('losses'), gp, pf: gp ? stat('pointsFor') / gp : 0, pa: gp ? stat('pointsAgainst') / gp : 0, diff: stat('pointDifferential'), conf, standing: td.standingSummary || '' };
+  const team = { id: String(teamId), name: td.shortDisplayName || td.location, fullName: td.displayName, abbr: td.abbreviation, logo: pickLogo(td), color: '#' + (td.color || '333333'), alt: '#' + (td.alternateColor || 'ffffff'), record: rec?.summary || dir?.overall || '0-0', wins: stat('wins'), losses: stat('losses'), gp, pf: gp ? stat('pointsFor') / gp : 0, pa: gp ? stat('pointsAgainst') / gp : 0, diff: stat('pointDifferential'), conf, standing: td.standingSummary || '' };
 
   const events = (sched.events || []).map(e => normSched(e, teamId)).sort((a, b) => a.date - b.date);
   const past = events.filter(e => e.state === 'post' && e.score != null);
@@ -37,7 +37,7 @@ export async function loadHome(ctx, teamId) {
     game = g || null;
     const oppId = next.opp.id;
     try { const od = await api.team(oppId).then(r => r.team); const orec = od.record?.items?.find(i => i.type === 'total') || od.record?.items?.[0]; const os = n => Number(orec?.stats?.find(s => s.name === n)?.value ?? 0); const ogp = os('gamesPlayed');
-      opp = { id: String(oppId), name: od.shortDisplayName || od.location, fullName: od.displayName, abbr: od.abbreviation, logo: od.logos?.[0]?.href || logoUrl(oppId), color: '#' + (od.color || '333333'), alt: '#' + (od.alternateColor || 'ffffff'), record: orec?.summary || '0-0', gp: ogp, pf: ogp ? os('pointsFor') / ogp : 0, pa: ogp ? os('pointsAgainst') / ogp : 0, diff: os('pointDifferential'), rank: next.opp.rank };
+      opp = { id: String(oppId), name: od.shortDisplayName || od.location, fullName: od.displayName, abbr: od.abbreviation, logo: pickLogo(od), color: '#' + (od.color || '333333'), alt: '#' + (od.alternateColor || 'ffffff'), record: orec?.summary || '0-0', gp: ogp, pf: ogp ? os('pointsFor') / ogp : 0, pa: ogp ? os('pointsAgainst') / ogp : 0, diff: os('pointDifferential'), rank: next.opp.rank };
     } catch { opp = { id: String(oppId), name: next.opp.name, abbr: '', logo: next.opp.logo, color: '#333', alt: '#fff', record: '', gp: 0, pf: 0, pa: 0, diff: 0, rank: next.opp.rank }; }
   }
 
@@ -61,7 +61,7 @@ function normSched(e, teamId) {
   const sc = x => x.score == null ? null : (x.score.value != null ? x.score.value : Number(x.score));
   const rk = x => x.curatedRank && x.curatedRank.current && x.curatedRank.current <= 25 ? x.curatedRank.current : null;
   return { id: e.id, date: new Date(e.date), week: e.week?.number, state: st.state, detail: st.shortDetail || st.detail || '', tbd: e.timeValid === false || /TBD|TBA/i.test(st.detail || ''), home: me.homeAway === 'home', neutral: !!c.neutralSite,
-    opp: { id: String(opp.team.id), name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, abbr: opp.team.abbreviation, logo: opp.team.logos?.[0]?.href || logoUrl(opp.team.id), rank: rk(opp) },
+    opp: { id: String(opp.team.id), name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, abbr: opp.team.abbreviation, logo: pickLogo(opp.team), rank: rk(opp) },
     won: !!me.winner, score: sc(me), oppScore: sc(opp), venue: c.venue?.fullName?.replace(/\s*\(.*\)$/, '') || '', city: c.venue?.address?.city || '', network: (c.broadcasts || []).map(b => b.media?.shortName || (b.names && b.names[0])).filter(Boolean)[0] || '' };
 }
 

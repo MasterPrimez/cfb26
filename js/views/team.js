@@ -1,5 +1,5 @@
 import { esc, statusBadge } from '../ui.js';
-import { api, logoUrl } from '../api.js';
+import { api, logoUrl, pickLogo } from '../api.js';
 import { fmtShortDate, fmtTime, tzLabel, state } from '../state.js';
 import { primaryNetwork, watchSummary } from '../networks.js';
 
@@ -9,7 +9,7 @@ export async function renderTeam(ctx, params) {
   const d = ctx.directory;
   const dirTeam = d?.teams.find(t => t.id === String(id));
   const conf = dirTeam?.conf;
-  const logo = team.logos?.[0]?.href || logoUrl(id);
+  const logo = pickLogo(team);
   const rec = team.record?.items?.find(i => i.type === 'total');
   const stat = n => rec?.stats?.find(s => s.name === n)?.value;
   const gp = stat('gamesPlayed') || 0;
@@ -70,7 +70,7 @@ function normSched(e, teamId) {
   return {
     id: e.id, date: new Date(e.date), week: e.week?.number, state: st.state, detail: st.shortDetail || st.detail || '', tbd: e.timeValid === false || /TBD|TBA/i.test(st.detail || ''),
     home: me.homeAway === 'home', neutral: !!c.neutralSite,
-    opp: { id: opp.team.id, name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, logo: opp.team.logos?.[0]?.href || logoUrl(opp.team.id), rank: rk(opp) },
+    opp: { id: opp.team.id, name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, logo: pickLogo(opp.team), rank: rk(opp) },
     won: !!me.winner, score: sc(me), oppScore: sc(opp),
     venue: c.venue?.fullName ? c.venue.fullName.replace(/\s*\(.*\)$/, '') + (c.venue.address?.city ? ' · ' + c.venue.address.city + (c.venue.address.state ? ', ' + c.venue.address.state : '') : '') : '',
     network: (c.broadcasts || []).map(b => b.media?.shortName || (b.names && b.names[0])).filter(Boolean)[0] || '',

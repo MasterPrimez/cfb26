@@ -1,4 +1,5 @@
 import { esc } from '../ui.js';
+import { darkLogo } from '../api.js';
 import { fmtTime, tzLabel, dayKey, state } from '../state.js';
 import { primaryNetwork } from '../networks.js';
 
