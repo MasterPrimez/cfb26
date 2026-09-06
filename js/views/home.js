@@ -253,9 +253,9 @@ function heroFrame() {
   const { wrap, hero } = heroEls;
   const total = Math.max(1, wrap.offsetHeight - window.innerHeight);
   const p = Math.min(1, Math.max(0, -wrap.getBoundingClientRect().top / total));
-  const a = Math.max(ease(Math.min(1, intro / 0.6)), ease(Math.min(1, p / 0.22)));
-  const b = Math.max(Math.min(1, Math.max(0, (intro - 0.45) / 0.55)), Math.min(1, Math.max(0, (p - 0.16) / 0.22)));
-  const c = Math.min(1, Math.max(0, (p - 0.5) / 0.5));
+  const a = Math.max(ease(Math.min(1, intro / 0.6)), ease(Math.min(1, p / 0.3)));
+  const b = Math.max(Math.min(1, Math.max(0, (intro - 0.45) / 0.55)), Math.min(1, Math.max(0, (p - 0.2) / 0.3)));
+  const c = Math.min(1, Math.max(0, (p - 0.45) / 0.55));
   hero.querySelectorAll('.story-logos .l').forEach(el => { const dir = Number(el.style.getPropertyValue('--lx')) || -1; el.style.transform = `translateX(${(1 - a) * dir * 40}vw)`; el.style.opacity = a; });
   const vs = hero.querySelector('.vs'); if (vs) vs.style.opacity = a;
   const ey = hero.querySelector('.h-eyebrow'); if (ey) ey.style.opacity = a;

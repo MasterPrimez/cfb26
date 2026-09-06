@@ -314,7 +314,7 @@ body { transition: background-color .5s ease, color .5s ease; }
 .story-chips .chip { padding: 5px 12px 5px 5px; cursor: pointer; background: none; color: var(--muted); transition: border-color .3s, color .3s; }
 .story-chips .chip.on { border-color: var(--amber); color: var(--text); font-weight: 600; }
 .story-chips .chip.add { color: var(--muted); }
-.story section { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 80px 32px; position: relative; }
+.story section { min-height: 86svh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 80px 32px; position: relative; }
 .story .big { font-size: clamp(52px, 8vw, 120px); line-height: .92; }
 .story .h2x { font-size: clamp(36px, 5vw, 72px); line-height: .95; }
 .story .lede { font-size: clamp(16px, 1.5vw, 21px); line-height: 1.5; max-width: 620px; color: var(--muted); margin-top: 22px; }
@@ -322,7 +322,7 @@ body { transition: background-color .5s ease, color .5s ease; }
 .story .rv.in { opacity: 1; transform: none; }
 .story .rv.d1 { transition-delay: .12s } .story .rv.d2 { transition-delay: .24s } .story .rv.d3 { transition-delay: .36s } .story .rv.d4 { transition-delay: .48s }
 /* hero (pinned, scroll-linked) */
-.story-hero-wrap { height: 300svh; position: relative; }
+.story-hero-wrap { height: 175svh; position: relative; }
 .story section.story-hero { position: sticky; top: 0; height: 100svh; min-height: 0; overflow: hidden; will-change: transform, opacity; padding: 40px 32px; }
 .story-logos { display: flex; align-items: center; gap: clamp(24px, 5vw, 60px); margin-bottom: 26px; }
 .story-logos .l { opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -339,7 +339,7 @@ body { transition: background-color .5s ease, color .5s ease; }
 .story .btn.primary { background: var(--amber); color: var(--bg); border-color: var(--amber); }
 .story .cue { position: absolute; bottom: 28px; font-size: 10px; letter-spacing: .2em; color: var(--dim); opacity: 0; animation: bob 1.8s infinite; }
 @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
-.story #prob { margin-top: -100svh; z-index: 2; background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -30px 60px rgba(0,0,0,.45); }
+.story #prob { margin-top: -75svh; z-index: 2; background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -30px 60px rgba(0,0,0,.45); }
 .story .story-sec { border-bottom: 1px solid var(--line); background: var(--bg); position: relative; }
 /* probability */
 .story .pct { font-size: clamp(130px, 18vw, 240px); line-height: .9; font-variant-numeric: tabular-nums; }
@@ -381,7 +381,9 @@ body { transition: background-color .5s ease, color .5s ease; }
 .story .tile .t { font-size: 28px; line-height: 1; } .story .tile .k { font-size: 10px; color: var(--muted); margin-top: 8px; letter-spacing: .1em; font-family: var(--mono); }
 .story .foot { font-size: 10px; letter-spacing: .14em; color: var(--dim); margin-top: 60px; }
 @media (max-width: 700px) {
-  .story section { padding: 60px 20px; }
+  .story section { padding: 48px 20px; min-height: 72svh; }
+  .story-hero-wrap { height: 160svh; }
+  .story #prob { margin-top: -60svh; }
   .story-logos { gap: 22px; }
   .story .cmp { grid-template-columns: 64px 1fr 64px; gap: 12px; } .story .cmp .n { font-size: 28px; }
   .story .tiles { grid-template-columns: repeat(2, 1fr); gap: 28px 16px; }
