@@ -295,8 +295,8 @@ onChange(() => { applyTheme(); render(); renderMyTeams(); });
 
 // ---- Welcome / support (first visit) -----------------------------------------
 // One-time "buy me a beer" screen. Honor system: either button dismisses it for good on this device.
-const SUPPORT_URL = 'https://venmo.com/u/YOUR-VENMO-HANDLE';
-const FEEDBACK_URL = 'mailto:YOUR-EMAIL';
+const SUPPORT_URL = 'https://venmo.com/u/Michael-Stine';
+const FEEDBACK_URL = 'mailto:michael.stine@gmail.com?subject=CFB%2F26%20feedback';
 const WELCOME_KEY = 'cfb26.welcome.v1';
 function setupWelcome() {
   const el = $('#welcome'); if (!el) return;
