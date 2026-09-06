@@ -1,0 +1,26 @@
+// Script for the explainer video: on-screen caption (HTML) + spoken line (plain text) per cue.
+// Keep spoken lines conversational; captions are the short version.
+export const NARR = {
+  title:    { cap: '', say: 'C F B twenty-six. Your college football season, one screen at a time. Here is a quick tour.' },
+  home:     { cap: `<b>Home</b> opens on your team's next game.`, say: 'Home opens on your team\'s next game, with live score, kickoff time, network, and venue.' },
+  prob:     { cap: `<b>Win probability</b> — from the betting line before kickoff, live from ESPN once it starts.`, say: 'Scroll down for win probability. Before kickoff it comes from the betting line; once the game starts, it updates live from ESPN.' },
+  matchup:  { cap: `The <b>matchup</b>: rankings, records, offense vs defense.`, say: 'Next, the matchup: rankings, records, and offense versus defense, side by side.' },
+  season:   { cap: `<b>Season stride</b> — every margin, every week, plus the rank trend.`, say: 'Season stride shows every margin of victory, week by week, along with the team\'s trend in the polls.' },
+  standing: { cap: `Where you sit in the <b>conference</b>.`, say: 'Then, where your team sits in the conference standings.' },
+  others:   { cap: `Your <b>other teams</b> — tap a chip up top to switch.`, say: 'Your other teams are right below. Tap a chip at the top to switch the whole page to a different one.' },
+  deeper:   { cap: `Want more? <b>Dive deeper</b> into the full dashboard.`, say: 'And when you want more, dive deeper into the full dashboard.' },
+  scores:   { cap: `<b>Scores</b> — every FBS game, live, with time, TV network and how to watch.`, say: 'Scores lists every F B S game, live, with the time, the TV network, and exactly how to watch it. Filter to your teams, the top twenty-five, or the power four.' },
+  boxscore: { cap: `Tap any game for the <b>box score</b>, leaders and scoring plays.`, say: 'Tap any game for the box score, the leaders, and every scoring play.' },
+  tv:       { cap: `<b>TV Guide</b> — the whole Saturday as a channel grid, like your cable guide.`, say: 'The TV guide lays out the whole Saturday as a channel grid, just like a cable guide, so you can see what is on at a glance.' },
+  tv_phone: { cap: `<b>TV Guide</b> — the whole Saturday by network. Switch to Desktop layout for the full grid.`, say: 'The TV guide lays out the whole Saturday by network. Switch to the desktop layout in your setup if you want the full grid on your phone.' },
+  rankings: { cap: `<b>Rankings</b> — AP, Coaches and the CFP committee, side by side.`, say: 'Rankings puts the A P poll, the coaches poll, and the playoff committee side by side.' },
+  playoff:  { cap: `The <b>12-team playoff</b> bracket — projected until the committee's first ranking in November.`, say: 'The playoff page shows the twelve-team bracket. Until the committee releases its first ranking in November, it is projected from the polls.' },
+  teams:    { cap: `<b>Teams</b> — all 130+ FBS programs by conference.`, say: 'Teams lists every F B S program, organized by conference.' },
+  teampage: { cap: `Every team page: <b>schedule</b>, results, venues, TV and conference standings.`, say: 'Every team page has the full schedule, results, venues, TV networks, and the conference standings.' },
+  setup:    { cap: `<b>My Setup</b> — pick your teams…`, say: 'Now, make it yours. Open My Setup and pick your teams.' },
+  services: { cap: `…and your <b>streaming services</b>. Every game then shows the way <i>you</i> can actually watch it.`, say: 'Then choose the streaming services you subscribe to. From then on, every game shows you the way you can actually watch it.' },
+  theme:    { cap: `Switch on <b>Team colors</b> and the whole app takes your team's look.`, say: 'Switch on team colors, and the whole app takes on your team\'s look.' },
+  share:    { cap: `<b>Share your setup</b> — friends who open your link start with your teams already picked.`, say: 'And share your setup. Friends who open your link start with your teams already picked.' },
+  saved:    { cap: `Everything is <b>saved on your device</b> — no sign-in needed. Data refreshes every 60 seconds.`, say: 'Everything is saved on your device. No sign-in needed, and the data refreshes every sixty seconds.' },
+  end:      { cap: '', say: 'Pick your teams. Know how to watch. C F B twenty-six.' },
+};

@@ -6,6 +6,8 @@ import { createServer } from 'http';
 import { readFile, mkdir, writeFile, rm } from 'fs/promises';
 import { extname, join } from 'path';
 import * as fx from './fixtures.mjs';
+import { NARR } from './narration.mjs';
+import { existsSync, readFileSync } from 'fs';
 
 const mode = process.argv[2] || 'phone';
 const out = process.argv[3] || `shots/tour-${mode}`;
@@ -69,14 +71,19 @@ const OVERLAY = `
 await page.addInitScript(html => { document.addEventListener('DOMContentLoaded', () => document.body.insertAdjacentHTML('beforeend', html)); }, OVERLAY);
 
 // ---- frame capture with explicit durations -------------------------------------------------
-let n = 0; const list = [];
-const frame = async (dur = 1 / 30) => { const f = `${String(n++).padStart(4, '0')}.png`; await page.screenshot({ path: join(out, f), animations: 'allow' }); list.push(`file '${f}'\nduration ${dur.toFixed(4)}`); };
+let n = 0, T = 0; const list = [], cues = [];
+const DUR = existsSync('shots/voice/durations.json') ? JSON.parse(readFileSync('shots/voice/durations.json', 'utf8')) : {};
+let sayEnd = 0;
+const frame = async (dur = 1 / 30) => { const f = `${String(n++).padStart(4, '0')}.png`; await page.screenshot({ path: join(out, f), animations: 'allow' }); list.push(`file '${f}'\nduration ${dur.toFixed(4)}`); T += dur; };
 const hold = async s => frame(s);
 const animate = async (s, fps = 24) => { const k = Math.max(1, Math.round(s * fps)); for (let i = 0; i < k; i++) { await page.waitForTimeout(1000 / fps); await frame(1 / fps); } };
 const ev = (fn, arg) => page.evaluate(fn, arg);
 
-const caption = async (html, dwell = 0) => { await ev(h => { const c = document.querySelector('#tour .cap'); if (!h) { c.classList.remove('show'); return; } c.innerHTML = h; c.classList.add('show'); }, html); await animate(0.35); if (dwell) await hold(dwell); };
-const card = async (html, secs) => { await ev(h => { const c = document.querySelector('#tour .card'); c.innerHTML = h; c.classList.add('show'); }, html); await animate(0.4); await hold(secs); await ev(() => document.querySelector('#tour .card').classList.remove('show')); await animate(0.4); };
+// Narration: a cue starts a voice line at the current time; settle() waits until the line has finished (+ a beat).
+const say = key => { if (!NARR[key] || !DUR[key]) return; cues.push({ key, t: +T.toFixed(3) }); sayEnd = T + DUR[key] + 0.45; };
+const settle = async () => { if (T < sayEnd) await hold(sayEnd - T); };
+const caption = async (key, dwell = 0) => { await settle(); const html = key ? NARR[key].cap : ''; say(key); await ev(h => { const c = document.querySelector('#tour .cap'); if (!h) { c.classList.remove('show'); return; } c.innerHTML = h; c.classList.add('show'); }, html); await animate(0.35); if (dwell) await hold(dwell); };
+const card = async (key, html, secs) => { await settle(); say(key); await ev(h => { const c = document.querySelector('#tour .card'); c.innerHTML = h; c.classList.add('show'); }, html); await animate(0.4); await hold(secs); await settle(); await ev(() => document.querySelector('#tour .card').classList.remove('show')); await animate(0.4); };
 const cursorTo = async (sel, opts = {}) => {
   try { await page.locator(sel).first().scrollIntoViewIfNeeded({ timeout: 1500 }); await page.waitForTimeout(150); } catch {}
   const box = await page.locator(sel).first().boundingBox(); if (!box) { console.log('no box for', sel); return null; }
@@ -102,87 +109,88 @@ await page.waitForTimeout(1500);
 await ev(() => scrollTo(0, 0));
 
 // 1. Title card
-await card(`<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Your college football season,<br>one screen at a time.</div><div class="s">A 60-second tour</div>`, 2.6);
+await card('title', `<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Your college football season,<br>one screen at a time.</div><div class="s">A quick tour</div>`, 2.6);
 
 // 2. Home story
 await ev(() => { location.hash = '#/home'; }); await page.waitForTimeout(400);
 await animate(1.6); // intro autoplay
-await caption(`<b>Home</b> opens on your team's next game.`, 1.2);
+await caption('home', 1.2);
 await scrollToEl('#prob', 1.6, 0);
-await caption(`<b>Win probability</b> — from the betting line before kickoff, live from ESPN once it starts.`);
+await caption('prob');
 await animate(1.4); await hold(0.6);
 await scrollToEl('#matchup', 1.3);
-await caption(`The <b>matchup</b>: rankings, records, offense vs defense.`); await animate(1.0); await hold(0.5);
+await caption('matchup'); await animate(1.0); await hold(0.5);
 await scrollToEl('#season', 1.3);
-await caption(`<b>Season stride</b> — every margin, every week, plus the rank trend.`); await animate(1.2); await hold(0.6);
+await caption('season'); await animate(1.2); await hold(0.6);
 await scrollToEl('#standing', 1.2);
-await caption(`Where you sit in the <b>conference</b>.`); await animate(0.9); await hold(0.4);
+await caption('standing'); await animate(0.9); await hold(0.4);
 await scrollToEl('#others', 1.1);
-await caption(`Your <b>other teams</b> — tap a chip up top to switch.`); await animate(0.9); await hold(0.4);
+await caption('others'); await animate(0.9); await hold(0.4);
 await scrollToEl('#deeper', 1.1);
-await caption(`Want more? <b>Dive deeper</b> into the full dashboard.`); await animate(0.9); await hold(0.6);
-await caption('');
+await caption('deeper'); await animate(0.9); await hold(0.6);
+await caption(null);
 
 // 3. Scores
 const navSel = PHONE ? '#tabbar a[href="#/scores"]' : '#nav a[href="#/scores"]';
 await tap(navSel); await page.waitForTimeout(700); await cursorOff();
-await caption(`<b>Scores</b> — every FBS game, live, with time, TV network and how to watch.`); await animate(1.2); await hold(0.8);
+await caption('scores'); await animate(1.2); await hold(0.8);
 if (!PHONE) { await scrollTo(500, 1.2); await hold(0.4); await scrollTo(0, 0.8); }
 else { await scrollTo(700, 1.4); await hold(0.4); await scrollTo(0, 0.8); }
-await caption(`Tap any game for the <b>box score</b>, leaders and scoring plays.`); await animate(0.3);
+await caption('boxscore'); await animate(0.3);
 await tap('[data-game]'); await page.waitForTimeout(900); await cursorOff(); await animate(0.8); await hold(0.9);
 if (!PHONE) { await scrollTo(400, 1.0); await hold(0.5); }
-await caption('');
+await caption(null);
 
 // 4. TV guide
 await tap(PHONE ? '#tabbar a[href="#/tv"]' : '#nav a[href="#/tv"]'); await page.waitForTimeout(900); await cursorOff();
-await caption(PHONE ? `<b>TV Guide</b> — the whole Saturday by network. Switch to Desktop layout for the full grid.` : `<b>TV Guide</b> — the whole Saturday as a channel grid, like your cable guide.`); await animate(1.2); await hold(0.8);
+await caption(PHONE ? 'tv_phone' : 'tv'); await animate(1.2); await hold(0.8);
 await scrollTo(PHONE ? 600 : 500, 1.4); await hold(0.5); await scrollTo(0, 0.8);
-await caption('');
+await caption(null);
 
 // 5. Rankings (desktop) / skip on phone
 if (!PHONE) {
   await tap('#nav a[href="#/rankings"]'); await page.waitForTimeout(900); await cursorOff();
-  await caption(`<b>Rankings</b> — AP, Coaches and the CFP committee, side by side.`); await animate(1.0); await hold(0.9);
-  await caption('');
+  await caption('rankings'); await animate(1.0); await hold(0.9);
+  await caption(null);
 }
 
 // 6. Playoff
 await tap(PHONE ? '#tabbar a[href="#/playoff"]' : '#nav a[href="#/playoff"]'); await page.waitForTimeout(900); await cursorOff();
-await caption(`The <b>12-team playoff</b> bracket — projected until the committee's first ranking in November.`); await animate(1.2); await hold(0.8);
+await caption('playoff'); await animate(1.2); await hold(0.8);
 if (PHONE) { await scrollTo(600, 1.4); await hold(0.4); }
-await caption('');
+await caption(null);
 
 // 7. Teams → team page
 await tap(PHONE ? '#tabbar a[href="#/teams"]' : '#nav a[href="#/teams"]'); await page.waitForTimeout(900); await cursorOff();
-await caption(`<b>Teams</b> — all 130+ FBS programs by conference.`); await animate(0.9); await hold(0.6);
+await caption('teams'); await animate(0.9); await hold(0.6);
 await tap('a[href="#/team/130"], [data-team="130"]'); await page.waitForTimeout(1000); await cursorOff();
-await caption(`Every team page: <b>schedule</b>, results, venues, TV and conference standings.`); await animate(1.0); await hold(0.7);
+await caption('teampage'); await animate(1.0); await hold(0.7);
 await scrollTo(PHONE ? 500 : 350, 1.2); await hold(0.4);
-await caption('');
+await caption(null);
 
 // 8. My Setup
 await ev(() => scrollTo(0, 0)); await page.waitForTimeout(200);
 await tap('#btn-settings'); await page.waitForTimeout(600); await cursorOff();
-await caption(`<b>My Setup</b> — pick your teams…`); await animate(0.6);
+await caption('setup'); await animate(0.6);
 for (const q of ['M', 'Mi', 'Mic', 'Mich']) { await ev(v => { const i = document.querySelector('#team-search'); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }, q); await animate(0.14); } await animate(0.4);
 await tap('#modal-body [data-star="130"]'); await page.waitForTimeout(300); await cursorOff(); await hold(0.7);
-await caption(`…and your <b>streaming services</b>. Every game then shows the way <i>you</i> can actually watch it.`); await animate(0.4);
+await caption('services'); await animate(0.4);
 await tap('[data-service="peacock"]'); await cursorOff(); await hold(0.6);
-await caption(`Switch on <b>Team colors</b> and the whole app takes your team's look.`); await animate(0.3);
+await caption('theme'); await animate(0.3);
 await tap('[data-theme-opt="team"]'); await cursorOff(); await animate(0.6); await hold(0.6);
-await caption(`<b>Share your setup</b> — friends who open your link start with your teams already picked.`); await animate(0.3);
+await caption('share'); await animate(0.3);
 await cursorTo('#copy-url'); await hold(1.2); await cursorOff();
-await caption('');
+await caption(null);
 await tap('#modal-close'); await page.waitForTimeout(400); await cursorOff();
 await go('#/home', 500); await ev(() => scrollTo(0, 0)); await animate(1.6);
-await caption(`Everything is <b>saved on your device</b> — no sign-in needed. Data refreshes every 60 seconds.`); await animate(1.0); await hold(1.2);
-await caption('');
+await caption('saved'); await animate(1.0); await hold(1.2);
+await caption(null);
 
 // 9. End card
-await card(`<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Pick your teams.<br>Know how to watch.</div><div class="url">${url}</div>`, 3.0);
+await card('end', `<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Pick your teams.<br>Know how to watch.</div><div class="url">${url}</div>`, 3.0);
 
 list.push(`file '${String(n - 1).padStart(4, '0')}.png'`);
 await writeFile(join(out, 'frames.txt'), list.join('\n') + '\n');
-console.log('frames', n, '→', out);
+await writeFile(join(out, 'cues.json'), JSON.stringify(cues, null, 1));
+console.log('frames', n, 'seconds', T.toFixed(1), 'cues', cues.length, '→', out);
 await browser.close(); server.close();
