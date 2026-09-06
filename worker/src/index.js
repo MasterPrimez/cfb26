@@ -10,11 +10,11 @@
 //   PUT  /prefs         (Bearer) {prefs}         → {ok, updated_at}
 //   GET  /config                                 → {googleClientId}
 //
-// Passwords: PBKDF2-SHA256, 210k iterations, per-user salt. Sessions: 32-byte random bearer token,
+// Passwords: PBKDF2-SHA256, 100k iterations, per-user salt. Sessions: 32-byte random bearer token,
 // only its SHA-256 is stored, 90-day expiry. All rows are scoped to the signed-in user.
 
 const SESSION_DAYS = 90;
-const PBKDF2_ITER = 210000;
+const PBKDF2_ITER = 100000; // Cloudflare Workers cap PBKDF2 at 100k iterations
 
 export default {
   async fetch(req, env) {
