@@ -434,3 +434,33 @@ html[data-theme="team"] .watch-card { background: linear-gradient(135deg, var(--
   .watch-cards { grid-template-columns: 1fr; }
   .watch-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Welcome / support screen (first visit) */
+.welcome { position: fixed; inset: 0; z-index: 60; background: rgba(6,7,9,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; }
+.welcome-card { width: min(460px, 100%); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 36px 32px 28px; background: var(--panel); border: 1px solid var(--line3); border-radius: 12px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+.welcome-brand { font-size: 34px; color: var(--amber); line-height: 1; } .welcome-brand span { color: var(--text); }
+.welcome-title { font-size: 36px; line-height: 1; margin-top: 4px; }
+.welcome-pint { width: 44px; height: 44px; color: var(--amber); }
+.welcome-text a { color: var(--amber); border-bottom: 1px solid var(--amber-dim); white-space: nowrap; } .welcome-text a:hover { color: #ffc75a; }
+.welcome-text { margin: 0; font-size: 15px; line-height: 1.55; color: #c9cbd0; text-wrap: pretty; }
+.welcome-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; }
+.welcome-points { display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); }
+.wp { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: #c9cbd0; }
+.wp svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--amber); margin-top: 1px; }
+.wp b { color: var(--text); font-weight: 600; }
+.btn-big { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 6px; background: var(--amber); color: var(--bg); font-family: var(--mono); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; }
+.btn-big:hover { color: var(--bg); background: #ffc75a; }
+.btn-quiet { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 6px; border: 1px solid var(--line3); color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+.btn-quiet:hover { border-color: var(--muted); color: var(--text); }
+.foot a { color: var(--muted); } .foot a:hover { color: var(--amber); }
+.welcome-foot { text-align: center; line-height: 1.6; max-width: 380px; }
+.welcome-foot a { white-space: nowrap; color: var(--amber); border-bottom: 1px solid var(--amber-dim); } .welcome-foot a:hover { color: #ffc75a; }
+@media (max-width: 700px) { .welcome { align-items: flex-start; padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); } .welcome-card { padding: 24px 18px 20px; gap: 12px; margin: auto 0; } .welcome-title { font-size: 30px; } .welcome-brand { font-size: 28px; } .welcome-text { font-size: 14px; } .welcome-points { padding: 12px 12px; } .wp { font-size: 12.5px; } }
+
+/* Account / sync */
+.account { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px dashed var(--amber-dim); border-radius: 8px; background: var(--bg2); }
+.account.on { flex-direction: row; align-items: center; justify-content: space-between; border-style: solid; border-color: var(--line3); }
+.signin { display: flex; gap: 8px; }
+.signin .search { flex-grow: 1; margin: 0; }
+#btn-signin.on { color: var(--win); border-color: #2c5a3f; }
+@media (max-width: 700px) { #btn-signin { display: none; } .account.on { flex-direction: column; align-items: flex-start; } }

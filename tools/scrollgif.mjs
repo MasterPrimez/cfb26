@@ -36,7 +36,7 @@ await context.route(/a\.espncdn\.com/, async route => {
   try { const r = await route.fetch(); if (r.status() !== 200) throw 0; route.fulfill({ response: r }); } catch { route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="30" fill="#444"/></svg>' }); }
 });
 const page = await context.newPage();
-await page.addInitScript(() => { try { localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['peacock', 'yttv'], tz: 'local', filter: 'all', theme: 'team' })); } catch {} });
+await page.addInitScript(() => { try { localStorage.setItem('cfb26.welcome.v1', '1'); localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['peacock', 'yttv'], tz: 'local', filter: 'all', theme: 'team' })); } catch {} });
 await page.goto(`http://localhost:${port}/#/home`);
 await page.waitForTimeout(2500);
 const total = await page.evaluate(() => document.body.scrollHeight - innerHeight);

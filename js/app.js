@@ -1,5 +1,6 @@
 import { api, normalizeEvent, normalizeDirectory } from './api.js';
 import { state, onChange, fmtTime, tzLabel } from './state.js';
+import { initAuth, onAuth, currentUser, sendMagicLink, signOut } from './auth.js';
 import { esc, wire } from './ui.js';
 import { SERVICES } from './networks.js';
 import { renderScores } from './views/scores.js';
@@ -182,7 +183,13 @@ function openModal() {
   const body = $('#modal-body');
   const draw = (q = '') => {
     const teams = d ? d.teams.filter(t => !q || t.fullName.toLowerCase().includes(q) || t.abbr.toLowerCase().includes(q)).sort((a, b) => (state.isMine(b.id) - state.isMine(a.id)) || a.name.localeCompare(b.name)) : [];
+    const u = currentUser();
+    const account = u
+      ? `<div class="account on"><div><div class="section-title" style="margin-bottom:2px">Synced</div><div class="sub">Signed in as ${esc(u.email)} · your teams and services follow you to any device.</div></div><button class="btn" id="btn-signout" type="button">Sign out</button></div>`
+      : `<div class="account"><div><div class="section-title" style="margin-bottom:2px">Sign in to sync</div><div class="sub">Optional. Get a one-tap link by email — no password — and your setup follows you to your phone and laptop.</div></div>
+          <form class="signin" id="signin-form"><input class="search" id="signin-email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required><button class="btn btn-amber" type="submit">Send link</button></form><div class="sub" id="signin-msg"></div></div>`;
     body.innerHTML = `
+      ${account}
       <div><div class="section-title">My Teams</div>
         <input class="search" id="team-search" placeholder="Search teams…" value="${esc(q)}" autocomplete="off">
         <div class="pick-list">${teams.map(t => `<div class="panel team-tile" data-star="${t.id}"><img src="${esc(t.logo)}" alt="" loading="lazy"><span class="nm">${esc(t.name)} <span class="muted" style="font-size:11px">${esc(t.conf.abbr)}</span></span><span class="star${state.isMine(t.id) ? ' on' : ''}">★</span></div>`).join('') || '<div class="sub">Loading teams…</div>'}</div></div>
@@ -197,7 +204,17 @@ function openModal() {
   };
   draw();
   body.oninput = e => { if (e.target.id === 'team-search') draw(e.target.value.toLowerCase()); };
+  body.onsubmit = async e => {
+    if (e.target.id !== 'signin-form') return;
+    e.preventDefault();
+    const email = $('#signin-email').value.trim(); const msg = $('#signin-msg');
+    if (!email) return;
+    msg.textContent = 'Sending…';
+    try { await sendMagicLink(email); msg.innerHTML = `<span class="up">Check your email</span> — open the link on this device and you're in. It can take a minute.`; e.target.querySelector('button').disabled = true; }
+    catch (err) { msg.innerHTML = `<span class="down">${esc(err.message || 'Could not send the link.')}</span>`; }
+  };
   body.onclick = e => {
+    if (e.target.id === 'btn-signout') { signOut().then(() => draw()); return; }
     const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const tz = e.target.closest('[data-tz]'); if (tz) { state.setTz(tz.dataset.tz); draw($('#team-search')?.value.toLowerCase() || ''); return; }
@@ -266,6 +283,8 @@ $('#btn-settings').onclick = openModal;
 document.querySelector('.theme-toggle').addEventListener('click', e => { const b = e.target.closest('[data-theme]'); if (b) state.setTheme(b.dataset.theme); });
 $('#myteams').addEventListener('click', e => { if (e.target.closest('#add-team')) openModal(); });
 $('#modal-close').onclick = closeModal;
+$('#btn-signin').onclick = () => openModal();
+onAuth(u => { const b = $('#btn-signin'); if (!b) return; b.textContent = u ? 'Synced' : 'Sign in'; b.classList.toggle('on', !!u); if (!$('#modal').hidden) openModal(); });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 window.addEventListener('hashchange', () => { render(); renderMyTeams(); window.scrollTo(0, 0); });
@@ -274,9 +293,31 @@ const mq = window.matchMedia('(max-width: 700px)');
 (mq.addEventListener ? mq.addEventListener.bind(mq) : mq.addListener.bind(mq))('change', () => render());
 onChange(() => { applyTheme(); render(); renderMyTeams(); });
 
+// ---- Welcome / support (first visit) -----------------------------------------
+// One-time "buy me a beer" screen. Honor system: either button dismisses it for good on this device.
+const SUPPORT_URL = 'https://venmo.com/u/YOUR-VENMO-HANDLE';
+const FEEDBACK_URL = 'mailto:YOUR-EMAIL';
+const WELCOME_KEY = 'cfb26.welcome.v1';
+function setupWelcome() {
+  const el = $('#welcome'); if (!el) return;
+  // Not configured yet (placeholder links) → keep the screen and footer link off until they're filled in.
+  if (/YOUR-/.test(SUPPORT_URL) || /YOUR-/.test(FEEDBACK_URL)) { $('#foot-support').hidden = true; return; }
+  $('#welcome-support').href = SUPPORT_URL;
+  $('#welcome-feedback').href = FEEDBACK_URL;
+  $('#foot-support').href = SUPPORT_URL; $('#foot-support').target = '_blank'; $('#foot-support').rel = 'noopener';
+  let seen = false; try { seen = !!localStorage.getItem(WELCOME_KEY); } catch {}
+  if (seen) return;
+  const dismiss = () => { el.hidden = true; try { localStorage.setItem(WELCOME_KEY, String(Date.now())); } catch {} };
+  $('#welcome-skip').onclick = dismiss;
+  $('#welcome-support').addEventListener('click', () => setTimeout(dismiss, 300));
+  el.hidden = false;
+}
+
 // ---- Boot ------------------------------------------------------------------
 
 (async function boot() {
+  setupWelcome();
+  initAuth().catch(e => console.warn('auth init', e));
   applyLayout(); applyTheme();
   setStatus('', 'LOADING');
   renderMyTeams();

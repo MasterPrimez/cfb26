@@ -40,7 +40,7 @@ await context.route(/a\.espncdn\.com/, async route => {
 const page = await context.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR', e.message));
 page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
-await page.addInitScript(() => { try { localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['peacock', 'yttv'], tz: 'local', filter: 'all' })); } catch {} });
+await page.addInitScript(() => { try { localStorage.setItem('cfb26.welcome.v1', '1'); localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['peacock', 'yttv'], tz: 'local', filter: 'all' })); } catch {} });
 
 const shots = [['home', '#/home'], ['scores', '#/scores'], ['tv', '#/tv'], ['rankings', '#/rankings'], ['playoff', '#/playoff'], ['teams', '#/teams'], ['team', '#/team/2483'], ['game', '#/game/4018100']];
 await page.goto(`http://localhost:${port}/`);

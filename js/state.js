@@ -59,6 +59,19 @@ export const state = {
   setFocus(id) { prefs.focus = id ? String(id) : null; emit(); },
   get focusTeam() { return prefs.focus && prefs.teams.includes(prefs.focus) ? prefs.focus : (prefs.teams[0] || null); },
   setFilter(f) { prefs.filter = f; emit(); },
+  // Layer 2: replace the whole prefs object (from the account store) without echoing back to the sync listener.
+  importPrefs(p, { silent = false } = {}) {
+    prefs = { ...defaults(), ...p };
+    save(prefs);
+    if (!silent) listeners.forEach(fn => fn(prefs));
+  },
+  // Merge a remote copy with this device: union of teams/services, remote wins on scalar settings it has set.
+  mergePrefs(remote) {
+    const r = remote || {};
+    const teams = [...new Set([...(r.teams || []), ...prefs.teams])];
+    const services = [...new Set([...(r.services || []), ...prefs.services])];
+    return { ...prefs, ...Object.fromEntries(Object.entries(r).filter(([k, v]) => ['tz', 'filter', 'layout', 'focus', 'theme'].includes(k) && v != null)), teams, services };
+  },
   shareUrl() {
     const q = new URLSearchParams();
     if (prefs.teams.length) q.set('teams', prefs.teams.join(','));

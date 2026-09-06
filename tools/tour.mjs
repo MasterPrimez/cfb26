@@ -48,7 +48,7 @@ await context.route(/a\.espncdn\.com/, async route => {
 });
 const page = await context.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR', e.message));
-await page.addInitScript(() => { try { localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['yttv'], tz: 'local', filter: 'all', theme: 'default' })); } catch {} });
+await page.addInitScript(() => { try { localStorage.setItem('cfb26.welcome.v1', '1'); localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['yttv'], tz: 'local', filter: 'all', theme: 'default' })); } catch {} });
 
 // ---- overlay (captions, title cards, fake cursor) ---------------------------------------------
 const OVERLAY = `
