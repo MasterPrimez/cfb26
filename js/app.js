@@ -254,6 +254,8 @@ view.addEventListener('click', e => {
   if (vw) { const q = new URLSearchParams(route().params); q.set('view', vw.dataset.view); location.hash = `#/tv?${q}`; return; }
   const st = e.target.closest('[data-star]');
   if (st) { e.stopPropagation(); state.toggleTeam(st.dataset.star); return; }
+  const sv = e.target.closest('[data-service]');
+  if (sv) { state.toggleService(sv.dataset.service); return; }
   const fc = e.target.closest('[data-focus]');
   if (fc) { state.setFocus(fc.dataset.focus); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (e.target.closest('#add-team, #add-team-2')) { openModal(); return; }

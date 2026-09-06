@@ -1,7 +1,7 @@
 import { esc, statusBadge } from '../ui.js';
 import { api, normalizeEvent, logoUrl } from '../api.js';
 import { fmtDay, state } from '../state.js';
-import { watchOptions, primaryNetwork, displayNetwork } from '../networks.js';
+import { watchOptions, primaryNetwork, displayNetwork, SERVICES, markHtml, networkMark } from '../networks.js';
 
 const TZS = [['pt', 'America/Los_Angeles', 'Pacific'], ['mt', 'America/Denver', 'Mountain'], ['ct', 'America/Chicago', 'Central'], ['et', 'America/New_York', 'Eastern']];
 
@@ -27,7 +27,9 @@ export async function renderGame(ctx, params) {
 
   const opts = watchOptions(g.networks);
   const mine = state.myServices;
-  const watch = opts.length ? opts.map(o => `<a class="watch-item${mine.has(o.id) ? ' have' : ''}" href="${esc(o.url)}" target="_blank" rel="noopener"><span>${esc(o.name)}</span><span class="tag">${mine.has(o.id) ? 'YOU HAVE THIS' : (o.kind === 'primary' ? 'STREAMS ' + esc(displayNetwork(o.via).toUpperCase()) : 'LIVE TV BUNDLE')}</span></a>`).join('') : `<div class="sub">${g.networks.length ? 'Check local listings' : 'Broadcast not announced yet'}</div>`;
+  const tagOf = o => mine.has(o.id) ? 'YOU HAVE THIS' : (o.kind === 'primary' ? 'STREAMS ' + esc(displayNetwork(o.via).toUpperCase()) : 'LIVE TV BUNDLE');
+  const watch = opts.length ? opts.map(o => `<a class="watch-item${mine.has(o.id) ? ' have' : ''}" href="${esc(o.url)}" target="_blank" rel="noopener">${markHtml(o, 26)}<span style="flex-grow:1">${esc(o.name)}</span><span class="tag">${tagOf(o)}</span></a>`).join('') : `<div class="sub">${g.networks.length ? 'Check local listings' : 'Broadcast not announced yet'}</div>`;
+  const watchHero = g.state === 'pre' ? renderWatchHero(g, opts, mine, sum) : '';
 
   const times = TZS.map(([k, z, n]) => `<div><div class="label">${n}</div><div class="mono" style="font-size:15px;margin-top:3px">${g.tbd ? 'TBA' : new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: z }).format(g.date)}</div></div>`).join('');
 
@@ -71,21 +73,64 @@ export async function renderGame(ctx, params) {
           <div><div class="label">Venue</div><div style="margin-top:3px">${esc(venue?.fullName || g.venue?.name || 'TBA')}</div><div class="muted" style="font-size:12px">${esc([venue?.address?.city || g.venue?.city, venue?.address?.state || g.venue?.state].filter(Boolean).join(', '))}${g.neutral ? ' · Neutral site' : ''}${venue?.capacity ? ' · Cap. ' + Number(venue.capacity).toLocaleString() : ''}</div></div>
           ${weather?.displayValue ? `<div><div class="label">Weather</div><div class="mono" style="font-size:13px;margin-top:3px">${esc(weather.displayValue)}${weather.temperature != null ? ' · ' + esc(weather.temperature) + '°F' : ''}</div></div>` : ''}
         </div>
-        <div class="panel panel-pad stack"><div class="disp h3">How to Watch</div>
+        ${g.state === 'pre' ? '' : `<div class="panel panel-pad stack"><div class="disp h3">How to Watch</div>
           <div style="display:flex;align-items:center;gap:10px"><span class="badge net" style="min-width:54px;text-align:center">${esc(primaryNetwork(g.networks) || 'TBA')}</span><span style="font-size:13px">${g.networks.length > 1 ? 'Also: ' + esc(g.networks.slice(1).map(displayNetwork).join(', ')) : (/\+$/.test(g.networks[0] || '') ? 'Streaming only' : 'Broadcast')}</span></div>
           <div class="hr"></div><div class="watch-list">${watch}</div>
           <div class="sub">Set your services under My Setup to highlight what you can watch.</div>
-        </div>
+        </div>`}
         ${g.odds ? `<div class="panel panel-pad stack" style="gap:8px"><div class="disp h3">Line</div><div class="kv"><span class="k">Spread</span><span class="mono">${esc(g.odds.details || '—')}</span></div>${g.odds.overUnder ? `<div class="kv"><span class="k">Total</span><span class="mono">O/U ${g.odds.overUnder}</span></div>` : ''}</div>` : ''}
       </div>
-      <div class="stack" style="gap:16px">
+      <div class="stack${g.state === 'pre' ? ' watch-first' : ''}" style="gap:16px">
+        ${watchHero}
         ${lsTable}
-        ${stats ? `<div class="panel panel-pad stack" style="gap:14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="disp h3">Team Stats</div><div class="sub">${esc(g.away.abbr)} ◀ ▶ ${esc(g.home.abbr)}</div></div>${stats}</div>` : (g.state === 'pre' ? '<div class="panel empty">Team stats, scoring plays and leaders appear here once the game kicks off.</div>' : '')}
+        ${stats ? `<div class="panel panel-pad stack" style="gap:14px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="disp h3">Team Stats</div><div class="sub">${esc(g.away.abbr)} ◀ ▶ ${esc(g.home.abbr)}</div></div>${stats}</div>` : ''}
         ${playsHtml ? `<div class="panel panel-pad stack"><div class="disp h3">Scoring Plays</div>${playsHtml}</div>` : ''}
       </div>
       <div class="stack" style="gap:16px">
         ${leaderHtml ? `<div class="panel panel-pad stack" style="gap:12px"><div class="disp h3">Leaders</div>${leaderHtml}</div>` : ''}
         ${wp != null && g.state !== 'pre' ? `<div class="panel panel-pad stack" style="gap:8px"><div class="disp h3">Win Probability</div><div style="display:flex;align-items:baseline;gap:10px"><span class="disp" style="font-size:40px;line-height:1">${wp >= 50 ? wp : 100 - wp}%</span><span class="sub">${esc(wp >= 50 ? g.home.name.toUpperCase() : g.away.name.toUpperCase())}</span></div></div>` : ''}
       </div>
+    </div>`;
+}
+
+function countdown(date) {
+  const ms = date - Date.now();
+  if (ms <= 0) return 'Kicking off';
+  const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+  if (d >= 1) return `Kicks off in ${d} day${d === 1 ? '' : 's'}, ${h} hour${h === 1 ? '' : 's'}`;
+  if (h >= 1) return `Kicks off in ${h} hour${h === 1 ? '' : 's'}, ${m} min`;
+  return `Kicks off in ${m} min`;
+}
+
+// Pre-game: How to Watch takes the center column (stats take it back at kickoff).
+function renderWatchHero(g, opts, mine, sum) {
+  const net = primaryNetwork(g.networks);
+  const venue = sum?.gameInfo?.venue || null;
+  const where = [venue?.fullName || g.venue?.name, venue?.address?.city || g.venue?.city].filter(Boolean).join(', ');
+  const primary = opts.find(o => o.kind === 'primary');
+  const streamingOnly = /\+$/.test(net || '') || (opts.length && opts.every(o => o.kind === 'primary'));
+  const netNote = !net ? 'Broadcast not announced yet' : streamingOnly ? 'Streaming only' : `${primary ? 'Also streams in ' + esc(primary.name) : 'Check local listings'}`;
+  const have = opts.filter(o => mine.has(o.id)), others = opts.filter(o => !mine.has(o.id));
+  const sub = o => o.kind === 'primary' ? 'STREAMS ' + esc(displayNetwork(o.via).toUpperCase()) : (mine.has(o.id) ? esc(displayNetwork(o.via).toUpperCase()) + ' IS IN YOUR PLAN' : 'LIVE TV BUNDLE');
+  const haveCards = have.map(o => `<a class="watch-card have" href="${esc(o.url)}" target="_blank" rel="noopener">${markHtml(o, 48)}<span class="wc-txt"><span class="wc-name">${esc(o.name)}</span><span class="wc-sub">${sub(o)}</span></span><span class="wc-cta">OPEN →</span></a>`).join('');
+  const tiles = arr => arr.map(o => `<a class="watch-tile" href="${esc(o.url)}" target="_blank" rel="noopener">${markHtml(o, 36)}<span class="wc-txt"><span class="wc-name">${esc(o.name)}</span><span class="wc-sub">${sub(o)}</span></span></a>`).join('');
+  const picker = `<div class="watch-pick">
+      <div><div class="disp h3">Which of these do you have?</div><div class="sub" style="margin-top:4px">Pick once and every game shows you the way <em>you</em> can actually watch it.</div></div>
+      <div class="opts">${Object.values(SERVICES).map(s => `<button class="chip${mine.has(s.id) ? ' on' : ''}" data-service="${s.id}" type="button">${markHtml(s, 22)}<span>${esc(s.name)}</span></button>`).join('')}</div>
+      <div class="sub">Saved on this device · change any time under My Setup</div>
+    </div>`;
+  const body = !opts.length ? `<div class="sub">${net ? 'No streaming options mapped for ' + esc(net) + ' yet — check local listings.' : 'We\'ll list every way to watch as soon as the network is announced.'}</div>`
+    : mine.size ? `<div class="stack" style="gap:10px"><div style="display:flex;align-items:baseline;gap:10px"><div class="disp h3">Your ways to watch</div><span class="sub">FROM YOUR SETUP · ${have.length} OF ${opts.length}</span></div>
+        ${have.length ? `<div class="watch-cards">${haveCards}</div>` : `<div class="sub">None of your services carry ${esc(net || 'this game')}. <a href="#" id="add-team-2">Edit your setup</a> or pick from the options below.</div>`}</div>
+       ${others.length ? `<div class="stack" style="gap:10px"><div style="display:flex;align-items:baseline;gap:10px"><div class="disp h3 muted">Other ways</div><span class="sub" style="color:var(--dim)">NOT IN YOUR SETUP</span></div><div class="watch-tiles">${tiles(others)}</div></div>` : ''}`
+    : `${picker}<div class="stack" style="gap:10px"><div class="disp h3 muted">All ways to watch</div><div class="watch-tiles">${tiles(opts)}</div></div>`;
+  return `<div class="panel watch-hero">
+      <div class="wh-head">
+        <div class="stack" style="gap:6px"><div class="label" style="color:var(--amber)">How to Watch</div><div class="disp wh-title">${g.tbd ? 'Kickoff time TBA' : countdown(g.date)}</div><div class="muted" style="font-size:13px">${esc(fmtDay(g.date))}${g.tbd ? '' : ' · ' + esc(new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(g.date))}${where ? ' · ' + esc(where) : ''}</div></div>
+        <div class="wh-net">${networkMark(net || 'TBA', 56)}<span class="wc-txt"><span class="label">Broadcast</span><span class="wc-name" style="font-size:16px">${esc(net || 'TBA')}${g.networks.length > 1 ? ' <span class="muted" style="font-size:12px">+ ' + esc(g.networks.slice(1).map(displayNetwork).join(', ')) + '</span>' : ''}</span><span class="wc-sub">${netNote}</span></span></div>
+      </div>
+      <div class="hr"></div>
+      ${body}
+      <div class="sub" style="color:var(--dim)">Team stats, scoring plays and leaders take over this space at kickoff.</div>
     </div>`;
 }

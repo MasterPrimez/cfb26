@@ -399,3 +399,38 @@ body { transition: background-color .5s ease, color .5s ease; }
   .story .cue { bottom: 76px; }
 }
 @media (prefers-reduced-motion: reduce) { .story .rv, .story .bar i, .story .cmp .tr i, .story .chart rect, .story .spark polyline { transition: none !important; } .story .rv { opacity: 1; transform: none; } }
+
+/* Marks (service / network icons) */
+.mark { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 22%; font-family: var(--mono); font-weight: 500; letter-spacing: 0.02em; flex-shrink: 0; overflow: hidden; }
+.mark img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Pre-game How to Watch hero (center column) */
+.watch-hero { padding: 24px 26px; display: flex; flex-direction: column; gap: 18px; }
+.wh-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.wh-title { font-size: 40px; line-height: 1; }
+.wh-net { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); }
+.wc-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex-grow: 1; }
+.wc-name { font-size: 15px; font-weight: 500; color: var(--text); }
+.wc-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+.watch-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.watch-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--amber-dim); border-radius: 8px; background: linear-gradient(135deg, #1a150c 0%, var(--panel) 60%); color: var(--text); }
+.watch-card:hover { border-color: var(--amber); color: var(--text); }
+.watch-card .wc-name { font-size: 17px; font-weight: 600; }
+.wc-cta { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; padding: 9px 14px; border-radius: 4px; background: var(--amber); color: var(--bg); font-weight: 500; white-space: nowrap; }
+.watch-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.watch-tile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); }
+.watch-tile:hover { border-color: var(--muted); color: var(--text); }
+.watch-pick { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border: 1px dashed var(--amber-dim); border-radius: 8px; background: var(--bg2); }
+.watch-pick .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.watch-pick .chip { padding: 5px 12px 5px 5px; font-size: 13px; cursor: pointer; }
+.watch-pick .chip.on { border-color: var(--amber); color: var(--amber); }
+.watch-item .mark { margin-right: 8px; }
+html[data-theme="team"] .watch-card { background: linear-gradient(135deg, var(--team-accent-dim) 0%, var(--panel) 60%); }
+@media (max-width: 700px) {
+  .game-cols .watch-first { order: -1; }
+  .watch-hero { padding: 18px 16px; }
+  .wh-title { font-size: 30px; }
+  .wh-net { width: 100%; }
+  .watch-cards { grid-template-columns: 1fr; }
+  .watch-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
