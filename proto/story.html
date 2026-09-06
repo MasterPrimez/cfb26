@@ -268,11 +268,14 @@ function drawSpark(t) {
 // ---- Scroll-linked hero (logos converge, title rises, then the whole hero eases away) ---
 const hero = $('#hero'), wrap = $('#herowrap');
 const ease = x => 1 - Math.pow(1 - x, 3);
+// Intro auto-plays on load (logos converge, title rises); scrolling can only move it forward from there.
+let intro = 0, introStart = null;
+function introTick(now) { if (!introStart) introStart = now; intro = Math.min(1, (now - introStart) / 1500); heroFrame(); if (intro < 1) requestAnimationFrame(introTick); }
 function heroFrame() {
   const r = wrap.getBoundingClientRect(); const total = wrap.offsetHeight - window.innerHeight;
   const p = Math.min(1, Math.max(0, -r.top / total)); // 0..1 through the pinned range
-  const a = ease(Math.min(1, p / 0.22));               // logos converge (first ~45vh)
-  const b = Math.min(1, Math.max(0, (p - 0.16) / 0.22)); // title/meta/cta follow
+  const a = Math.max(ease(Math.min(1, intro / 0.6)), ease(Math.min(1, p / 0.22)));                 // logos converge
+  const b = Math.max(Math.min(1, Math.max(0, (intro - 0.45) / 0.55)), Math.min(1, Math.max(0, (p - 0.16) / 0.22))); // title/meta/cta follow
   const c = Math.min(1, Math.max(0, (p - 0.5) / 0.5));  // then the hero settles back as the next section slides over it
   document.querySelectorAll('.logos .l').forEach(el => { const dir = Number(getComputedStyle(el).getPropertyValue('--lx')) || -1; el.style.transform = `translateX(${(1 - a) * dir * 40}vw)`; el.style.opacity = a; });
   $('.logos .vs').style.opacity = a;
@@ -304,11 +307,11 @@ function revealProb() {
 }
 
 // ---- Controls ----------------------------------------------------------------------
-$('#chips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; team = c.dataset.team; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+$('#chips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; team = c.dataset.team; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); intro = 0; introStart = null; requestAnimationFrame(introTick); });
 $('#th-default').onclick = () => { document.documentElement.removeAttribute('data-theme'); $('#th-default').classList.add('on'); $('#th-team').classList.remove('on'); };
 $('#th-team').onclick = () => { document.documentElement.dataset.theme = 'team'; $('#th-team').classList.add('on'); $('#th-default').classList.remove('on'); };
 
-render(); heroFrame();
+render(); requestAnimationFrame(introTick);
 </script>
 
 </body>
