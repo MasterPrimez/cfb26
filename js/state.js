@@ -16,6 +16,11 @@ const defaults = () => ({
 let prefs = load();
 
 function load() {
+  // ?fresh → forget everything this device knows (teams, welcome flag, rank history) and reload as a first visit.
+  if (new URLSearchParams(location.search).has('fresh')) {
+    try { Object.keys(localStorage).filter(k => k.startsWith('cfb26.')).forEach(k => localStorage.removeItem(k)); } catch {}
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
   let p = defaults();
   try { const raw = localStorage.getItem(KEY); if (raw) p = { ...p, ...JSON.parse(raw) }; } catch {}
   // URL overrides (a shared link) win and are then saved.
