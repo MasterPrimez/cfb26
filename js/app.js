@@ -307,7 +307,8 @@ const WELCOME_KEY = 'cfb26.welcome.v1';
 function setupWelcome() {
   const el = $('#welcome'); if (!el) return;
   // Not configured yet (placeholder links) → keep the screen and footer link off until they're filled in.
-  if (/YOUR-/.test(SUPPORT_URL) || /YOUR-/.test(FEEDBACK_URL)) { $('#foot-support').hidden = true; return; }
+  if (/YOUR-/.test(SUPPORT_URL) || /YOUR-/.test(FEEDBACK_URL)) { $('#foot-support').hidden = true; $('#btn-beer').hidden = true; return; }
+  $('#btn-beer').href = SUPPORT_URL;
   $('#welcome-support').href = SUPPORT_URL;
   $('#welcome-feedback').href = FEEDBACK_URL;
   $('#foot-support').href = SUPPORT_URL; $('#foot-support').target = '_blank'; $('#foot-support').rel = 'noopener';
