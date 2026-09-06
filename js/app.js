@@ -1,6 +1,6 @@
 import { api, normalizeEvent, normalizeDirectory } from './api.js';
 import { state, onChange, fmtTime, tzLabel } from './state.js';
-import { initAuth, onAuth, currentUser, sendMagicLink, signOut } from './auth.js';
+import { initAuth, onAuth, currentUser, authEnabled, googleEnabled, signIn, signUp, signOut, mountGoogleButton } from './auth.js';
 import { esc, wire } from './ui.js';
 import { SERVICES } from './networks.js';
 import { renderScores } from './views/scores.js';
@@ -184,10 +184,13 @@ function openModal() {
   const draw = (q = '') => {
     const teams = d ? d.teams.filter(t => !q || t.fullName.toLowerCase().includes(q) || t.abbr.toLowerCase().includes(q)).sort((a, b) => (state.isMine(b.id) - state.isMine(a.id)) || a.name.localeCompare(b.name)) : [];
     const u = currentUser();
-    const account = u
-      ? `<div class="account on"><div><div class="section-title" style="margin-bottom:2px">Synced</div><div class="sub">Signed in as ${esc(u.email)} · your teams and services follow you to any device.</div></div><button class="btn" id="btn-signout" type="button">Sign out</button></div>`
-      : `<div class="account"><div><div class="section-title" style="margin-bottom:2px">Sign in to sync</div><div class="sub">Optional. Get a one-tap link by email — no password — and your setup follows you to your phone and laptop.</div></div>
-          <form class="signin" id="signin-form"><input class="search" id="signin-email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required><button class="btn btn-amber" type="submit">Send link</button></form><div class="sub" id="signin-msg"></div></div>`;
+    const mode = body.dataset.authMode || 'in';
+    const account = !authEnabled() ? ''
+      : u ? `<div class="account on"><div><div class="section-title" style="margin-bottom:2px">Synced</div><div class="sub">Signed in as ${esc(u.email)} · your teams and services follow you to any device.</div></div><button class="btn" id="btn-signout" type="button">Sign out</button></div>`
+      : `<div class="account"><div><div class="section-title" style="margin-bottom:2px">${mode === 'up' ? 'Create an account' : 'Sign in to sync'}</div><div class="sub">Optional. Your teams and services follow you to your phone and laptop.</div></div>
+          <form class="signin" id="signin-form" data-mode="${mode}"><input class="search" id="signin-email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required><input class="search" id="signin-pw" type="password" autocomplete="${mode === 'up' ? 'new-password' : 'current-password'}" placeholder="${mode === 'up' ? 'Choose a password (8+ characters)' : 'Password'}" minlength="8" required><button class="btn btn-amber" type="submit">${mode === 'up' ? 'Create account' : 'Sign in'}</button></form>
+          <div class="sub" id="signin-msg"></div>
+          <div class="signin-alt"><button class="linkish" id="signin-toggle" type="button">${mode === 'up' ? 'Have an account? Sign in' : 'New here? Create an account'}</button>${googleEnabled() ? '<span class="sub">or</span><div id="google-btn"></div>' : ''}</div></div>`;
     body.innerHTML = `
       ${account}
       <div><div class="section-title">My Teams</div>
@@ -201,20 +204,23 @@ function openModal() {
       <div><div class="section-title">Share Your Setup</div><div class="sub" style="margin-bottom:8px">Send this link and whoever opens it starts with your teams already picked.</div><div class="share-url" id="share-url">${esc(state.shareUrl())}</div><div style="margin-top:8px"><button class="btn btn-amber" id="copy-url" type="button">Copy link</button></div></div>
       <div class="sub">Saved on this device. Sign-in to sync across devices is coming next.</div>`;
     const inp = $('#team-search'); if (q) { inp.focus(); inp.setSelectionRange(q.length, q.length); }
+    mountGoogleButton($('#google-btn'));
   };
   draw();
   body.oninput = e => { if (e.target.id === 'team-search') draw(e.target.value.toLowerCase()); };
   body.onsubmit = async e => {
     if (e.target.id !== 'signin-form') return;
     e.preventDefault();
-    const email = $('#signin-email').value.trim(); const msg = $('#signin-msg');
-    if (!email) return;
-    msg.textContent = 'Sending…';
-    try { await sendMagicLink(email); msg.innerHTML = `<span class="up">Check your email</span> — open the link on this device and you're in. It can take a minute.`; e.target.querySelector('button').disabled = true; }
-    catch (err) { msg.innerHTML = `<span class="down">${esc(err.message || 'Could not send the link.')}</span>`; }
+    const email = $('#signin-email').value.trim(), pw = $('#signin-pw').value; const msg = $('#signin-msg'); const btn = e.target.querySelector('button');
+    if (!email || !pw) return;
+    btn.disabled = true; msg.textContent = e.target.dataset.mode === 'up' ? 'Creating your account…' : 'Signing in…';
+    try { if (e.target.dataset.mode === 'up') await signUp(email, pw); else await signIn(email, pw); }
+    catch (err) { msg.innerHTML = `<span class="down">${esc(err.message)}</span>`; btn.disabled = false; }
   };
+
   body.onclick = e => {
-    if (e.target.id === 'btn-signout') { signOut().then(() => draw()); return; }
+    if (e.target.id === 'btn-signout') { signOut(); return; }
+    if (e.target.id === 'signin-toggle') { body.dataset.authMode = body.dataset.authMode === 'up' ? 'in' : 'up'; draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const tz = e.target.closest('[data-tz]'); if (tz) { state.setTz(tz.dataset.tz); draw($('#team-search')?.value.toLowerCase() || ''); return; }
@@ -284,7 +290,7 @@ document.querySelector('.theme-toggle').addEventListener('click', e => { const b
 $('#myteams').addEventListener('click', e => { if (e.target.closest('#add-team')) openModal(); });
 $('#modal-close').onclick = closeModal;
 $('#btn-signin').onclick = () => openModal();
-onAuth(u => { const b = $('#btn-signin'); if (!b) return; b.textContent = u ? 'Synced' : 'Sign in'; b.classList.toggle('on', !!u); if (!$('#modal').hidden) openModal(); });
+onAuth(u => { const b = $('#btn-signin'); if (!b) return; b.hidden = !authEnabled(); b.textContent = u ? 'Synced' : 'Sign in'; b.classList.toggle('on', !!u); if (!$('#modal').hidden) openModal(); });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 window.addEventListener('hashchange', () => { render(); renderMyTeams(); window.scrollTo(0, 0); });

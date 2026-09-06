@@ -1,70 +1,88 @@
-// Layer 2: sign in to sync. Supabase Auth (email magic link) + one row per person holding their prefs.
+// Layer 2: accounts + sync, backed by the Cloudflare Worker in /worker (D1 database).
 // Works without an account: everything stays on-device until someone signs in; then the device copy and the
 // account copy are merged and every change is saved to both.
 import { state, onChange } from './state.js';
+import { API_URL } from './config.js';
 
-export const SUPABASE_URL = 'https://ectxmgzjrdzcpyyecaww.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjdHhtZ3pqcmR6Y3B5eWVjYXd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2Njc5OTgsImV4cCI6MjEwNDI0Mzk5OH0.7PnTmDn_Y3W7eC2RZaxpj3IriDwyu7dvJ1gFKsshMYU';
-
-let client = null;
+const TOKEN_KEY = 'cfb26.session.v1';
 let user = null;
+let token = null;
 let pushTimer = null;
 let applyingRemote = false;
+let googleClientId = null;
 const listeners = new Set();
 
 export function onAuth(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function currentUser() { return user; }
+export function authEnabled() { return !!API_URL; }
+export function googleEnabled() { return !!googleClientId; }
 const notify = () => listeners.forEach(fn => fn(user));
 
-function sb() {
-  if (client) return client;
-  if (!window.supabase?.createClient) return null; // library didn't load (offline / blocked) — app keeps working on-device
-  client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-  return client;
+async function api(method, path, body) {
+  if (!API_URL) throw new Error('Accounts are not set up yet.');
+  let r;
+  try {
+    r = await fetch(API_URL + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  } catch { throw new Error('Could not reach the server. Check your connection.'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(data.error || 'Something went wrong.'); e.status = r.status; throw e; }
+  return data;
 }
 
 export async function initAuth() {
-  const c = sb(); if (!c) return;
-  c.auth.onAuthStateChange(async (event, session) => {
-    const next = session?.user || null;
-    const changed = (next?.id || null) !== (user?.id || null);
-    user = next;
-    if (event === 'SIGNED_IN' && /[?&]code=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
-    if (changed) { if (user) await pullAndMerge(); notify(); }
-  });
-  const { data } = await c.auth.getSession();
-  user = data?.session?.user || null;
-  if (user) await pullAndMerge();
+  if (!API_URL) { notify(); return; }
+  try { token = localStorage.getItem(TOKEN_KEY); } catch {}
+  api('GET', '/config').then(c => { googleClientId = c.googleClientId || null; notify(); }).catch(() => {});
+  if (token) {
+    try { user = (await api('GET', '/auth/me')).user; await pullAndMerge(); }
+    catch (e) { if (e.status === 401) { token = null; try { localStorage.removeItem(TOKEN_KEY); } catch {} } }
+  }
   notify();
   onChange(() => { if (user && !applyingRemote) schedulePush(); });
 }
 
-export async function sendMagicLink(email) {
-  const c = sb(); if (!c) throw new Error('Sign-in is unavailable right now.');
-  const { error } = await c.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: true } });
-  if (error) throw error;
+async function acceptSession(data) {
+  token = data.token; user = data.user;
+  try { localStorage.setItem(TOKEN_KEY, token); } catch {}
+  await pullAndMerge();
+  notify();
 }
 
+export async function signUp(email, password) { await acceptSession(await api('POST', '/auth/signup', { email, password })); }
+export async function signIn(email, password) { await acceptSession(await api('POST', '/auth/login', { email, password })); }
+export async function signInWithGoogle(credential) { await acceptSession(await api('POST', '/auth/google', { credential })); }
+
 export async function signOut() {
-  const c = sb(); if (!c) return;
-  await c.auth.signOut();
-  user = null; notify();
+  try { if (token) await api('POST', '/auth/logout'); } catch {}
+  token = null; user = null;
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  notify();
+}
+
+// Google Identity Services button. Loads Google's script on demand; renders into `el`.
+export function mountGoogleButton(el) {
+  if (!googleClientId || !el) return;
+  const render = () => {
+    window.google.accounts.id.initialize({ client_id: googleClientId, callback: async resp => { try { await signInWithGoogle(resp.credential); } catch (e) { el.insertAdjacentHTML('afterend', `<div class="sub down">${e.message}</div>`); } } });
+    window.google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', width: 280 });
+  };
+  if (window.google?.accounts?.id) return render();
+  if (!document.getElementById('gsi-script')) { const s = document.createElement('script'); s.id = 'gsi-script'; s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = render; document.head.appendChild(s); }
+  else document.getElementById('gsi-script').addEventListener('load', render);
 }
 
 async function pullAndMerge() {
-  const c = sb(); if (!c || !user) return;
-  const { data, error } = await c.from('profiles').select('prefs').eq('id', user.id).maybeSingle();
-  if (error) { console.warn('sync pull failed', error.message); return; }
-  const merged = state.mergePrefs(data?.prefs || null);
+  if (!user) return;
+  let remote = null;
+  try { remote = (await api('GET', '/prefs')).prefs; } catch (e) { console.warn('sync pull failed', e.message); return; }
+  const merged = state.mergePrefs(remote);
   applyingRemote = true;
   try { state.importPrefs(merged); } finally { applyingRemote = false; }
   await push();
 }
 
 function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(push, 800); }
-
 async function push() {
-  const c = sb(); if (!c || !user) return;
-  const { error } = await c.from('profiles').upsert({ id: user.id, email: user.email, prefs: state.prefs, updated_at: new Date().toISOString() });
-  if (error) console.warn('sync push failed', error.message);
+  if (!user) return;
+  try { await api('PUT', '/prefs', { prefs: state.prefs }); } catch (e) { console.warn('sync push failed', e.message); }
 }
