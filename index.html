@@ -20,8 +20,9 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand disp" href="#/scores">CFB<span>/26</span></a>
+    <a class="brand disp" href="#/home">CFB<span>/26</span></a>
     <nav class="nav" id="nav">
+      <a href="#/home" data-route="home">Home</a>
       <a href="#/scores" data-route="scores">Scores</a>
       <a href="#/tv" data-route="tv">TV Guide</a>
       <a href="#/rankings" data-route="rankings">Rankings</a>
@@ -30,6 +31,7 @@
     </nav>
     <div class="spacer"></div>
     <div class="status mono" id="status"><span class="dot"></span><span id="status-text">LOADING</span></div>
+    <div class="theme-toggle"><button class="btn on" data-theme="default" type="button">Default</button><button class="btn" data-theme="team" type="button">Team</button></div>
     <button class="btn btn-amber" id="btn-settings" type="button">My Setup</button>
   </header>
 
@@ -38,9 +40,9 @@
   <main id="view" class="view"></main>
 
   <nav class="tabbar" id="tabbar">
+    <a href="#/home" data-route="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
     <a href="#/scores" data-route="scores"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v6"/></svg>Scores</a>
     <a href="#/tv" data-route="tv"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8M12 18v3"/></svg>TV</a>
-    <a href="#/rankings" data-route="rankings"><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V10M12 20V4M18 20v-8"/></svg>Rank</a>
     <a href="#/playoff" data-route="playoff"><svg viewBox="0 0 24 24"><path d="M4 5h5v6H4zM4 13h5v6H4zM9 8h4v8H9M13 12h4M15 9h5v6h-5z"/></svg>Playoff</a>
     <a href="#/teams" data-route="teams"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3c3 3 3 15 0 18M3 12h18M5 7c4 2 10 2 14 0M5 17c4-2 10-2 14 0"/></svg>Teams</a>
   </nav>

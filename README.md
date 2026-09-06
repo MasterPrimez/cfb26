@@ -28,3 +28,12 @@ Any static server works, e.g. `npx serve .` or `python3 -m http.server 8080`, th
 `npm install` once, then `node tools/shots.mjs iphone` screenshots every screen on an emulated iPhone 15 using
 synthetic ESPN-shaped data from `tools/fixtures.mjs` (ESPN blocks datacenter IPs, so real data can't be used in CI).
 Output lands in `shots/iphone/`. `node tools/shots.mjs desktop` does the same at 1440px.
+
+## Home (Story) — added Sep 2026
+`#/home` is the default route: a scroll narrative about one favorite team (chips at the top switch teams).
+Sections: next game → win probability → matchup → season so far → where they stand → other favorites → dive deeper.
+- Win probability: ESPN's live number during a game; before kickoff the betting spread converted with Φ(margin/13.86);
+  if there's no line yet, a points-margin model with home field. Labelled in the footer.
+- AP rank trend accumulates in localStorage (`cfb26.rankhist.v1`) since ESPN has no history endpoint.
+- Theme "Team" derives page colors from the focused team's ESPN colors (`applyTheme` in app.js).
+- Motion: pinned hero (scroll-linked), IntersectionObserver reveals, count-ups; respects prefers-reduced-motion.

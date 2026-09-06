@@ -65,12 +65,16 @@ export function standings() {
 
 export function teamDetail(id) {
   const t = TEAMS.find(x => x[0] === id) || TEAMS[0];
-  return { team: { ...team(t), record: { items: [{ type: 'total', summary: '1-0', stats: [{ name: 'gamesPlayed', value: 1 }, { name: 'pointsFor', value: 42 }, { name: 'pointsAgainst', value: 10 }] }] }, standingSummary: '1st in Big Ten', groups: { id: t[4] } } };
+  return { team: { ...team(t), record: { items: [{ type: 'total', summary: '4-1', stats: [{ name: 'gamesPlayed', value: 5 }, { name: 'wins', value: 4 }, { name: 'losses', value: 1 }, { name: 'pointsFor', value: 190 }, { name: 'pointsAgainst', value: 88 }, { name: 'pointDifferential', value: 102 }] }] }, standingSummary: '1st in Big Ten', groups: { id: t[4] } } };
 }
 
 export function schedule(id) {
   const sb = scoreboard();
-  const events = sb.events.filter(e => e.competitions[0].competitors.some(c => c.id === id)).map(e => ({ ...e, competitions: [{ ...e.competitions[0], competitors: e.competitions[0].competitors.map(c => ({ ...c, score: { value: Number(c.score), displayValue: c.score }, team: { ...c.team, logos: c.team.logos } })), broadcasts: [{ media: { shortName: e.competitions[0].broadcasts[0].names[0] } }] }] }));
+  const events = sb.events.filter(e => e.competitions[0].competitors.some(c => c.id === id) && e.status.type.state !== 'post').map(e => ({ ...e, competitions: [{ ...e.competitions[0], competitors: e.competitions[0].competitors.map(c => ({ ...c, score: { value: Number(c.score), displayValue: c.score }, team: { ...c.team, logos: c.team.logos } })), broadcasts: [{ media: { shortName: e.competitions[0].broadcasts[0].names[0] } }] }] }));
+  // past games with scores
+  const me = team(TEAMS.find(x => x[0] === id) || TEAMS[0]);
+  [[53, 'BALL'], [7, 'TEX'], [31, 'OHIO'], [-6, 'PSU'], [24, 'MINN']].forEach(([m, ab], i) => { const opp = team(TEAMS.find(x => x[2] === ab) || TEAMS[(i * 5) % TEAMS.length]); const d = new Date(); d.setDate(d.getDate() - (5 - i) * 7);
+    events.unshift({ id: 'p' + i, date: d.toISOString(), week: { number: i + 1 }, competitions: [{ status: { type: { state: 'post', shortDetail: 'Final', completed: true } }, competitors: [{ id, homeAway: i % 2 ? 'away' : 'home', winner: m > 0, score: { value: 30 + Math.max(0, m), displayValue: String(30 + Math.max(0, m)) }, team: me }, { id: opp.id, homeAway: i % 2 ? 'home' : 'away', winner: m < 0, score: { value: 30 + Math.max(0, -m), displayValue: String(30 + Math.max(0, -m)) }, team: opp, curatedRank: { current: 99 } }], venue: { fullName: 'Some Stadium', address: { city: 'Town', state: 'ST' } }, broadcasts: [{ media: { shortName: 'FOX' } }] }] }); });
   // pad with future games
   for (let i = 2; i <= 12; i++) { const opp = team(TEAMS[(i * 3) % TEAMS.length]); const d = new Date(); d.setDate(d.getDate() + i * 7); events.push({ id: 'f' + i, date: d.toISOString(), week: { number: i }, timeValid: i % 2 === 0, competitions: [{ status: { type: { state: 'pre', shortDetail: i % 2 ? 'TBD' : '9/26 - 4:30 PM EDT' } }, competitors: [{ id, homeAway: i % 2 ? 'home' : 'away', team: team(TEAMS.find(x => x[0] === id) || TEAMS[0]) }, { id: opp.id, homeAway: i % 2 ? 'away' : 'home', team: opp, curatedRank: { current: i < 5 ? i + 8 : 99 } }], venue: { fullName: 'Some Stadium', address: { city: 'Town', state: 'ST' } }, broadcasts: i % 2 ? [] : [{ media: { shortName: 'FOX' } }] }] }); }
   return { team: team(TEAMS.find(x => x[0] === id) || TEAMS[0]), season: { year: 2026 }, events };

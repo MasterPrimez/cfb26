@@ -9,6 +9,8 @@ const defaults = () => ({
   tz: 'local',        // 'local' | 'pt' | 'et'
   filter: 'all',      // 'all' | 'mine' | 'top25' | 'p4' | conference id
   layout: 'auto',     // 'auto' (phone layout on phones) | 'desktop' (force desktop layout, pinch to zoom)
+  focus: null,        // team id the home story is about (defaults to first favorite)
+  theme: 'default',   // 'default' | 'team' (focused team's colors)
 });
 
 let prefs = load();
@@ -22,7 +24,9 @@ function load() {
   if (q.has('tz')) p.tz = q.get('tz');
   if (q.has('services')) p.services = q.get('services').split(',').filter(Boolean);
   if (q.has('layout')) p.layout = q.get('layout');
-  if (q.has('teams') || q.has('tz') || q.has('services') || q.has('layout')) {
+  if (q.has('theme')) p.theme = q.get('theme');
+  if (q.has('focus')) p.focus = q.get('focus');
+  if (q.has('teams') || q.has('tz') || q.has('services') || q.has('layout') || q.has('theme') || q.has('focus')) {
     save(p);
     history.replaceState(null, '', location.pathname + location.hash);
   }
@@ -51,11 +55,15 @@ export const state = {
   },
   setTz(tz) { prefs.tz = tz; emit(); },
   setLayout(l) { prefs.layout = l; emit(); },
+  setTheme(t) { prefs.theme = t; emit(); },
+  setFocus(id) { prefs.focus = id ? String(id) : null; emit(); },
+  get focusTeam() { return prefs.focus && prefs.teams.includes(prefs.focus) ? prefs.focus : (prefs.teams[0] || null); },
   setFilter(f) { prefs.filter = f; emit(); },
   shareUrl() {
     const q = new URLSearchParams();
     if (prefs.teams.length) q.set('teams', prefs.teams.join(','));
     if (prefs.tz !== 'local') q.set('tz', prefs.tz);
+    if (prefs.theme !== 'default') q.set('theme', prefs.theme);
     const base = location.origin + location.pathname;
     return q.toString() ? `${base}?${q}` : base;
   },

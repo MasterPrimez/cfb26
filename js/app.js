@@ -9,6 +9,7 @@ import { renderPlayoff, projectPlayoff } from './views/playoff.js';
 import { renderTeams } from './views/teams.js';
 import { renderTeam } from './views/team.js';
 import { renderGame } from './views/game.js';
+import { renderHome, loadHome, unmountStory, homeSignature } from './views/home.js';
 
 const $ = s => document.querySelector(s);
 const view = $('#view');
@@ -29,32 +30,36 @@ const ctx = {
 // ---- Routing ---------------------------------------------------------------
 
 function route() {
-  const h = location.hash.replace(/^#\/?/, '') || 'scores';
+  const h = location.hash.replace(/^#\/?/, '') || 'home';
   const [path, qs] = h.split('?');
   const parts = path.split('/');
   const params = Object.fromEntries(new URLSearchParams(qs || ''));
-  return { name: parts[0] || 'scores', id: parts[1], params };
+  return { name: parts[0] || 'home', id: parts[1], params };
 }
 
 let rendering = false;
-async function render() {
+async function render(opts = {}) {
   const r = route();
   document.querySelectorAll('#nav a, #tabbar a').forEach(a => a.classList.toggle('active', a.dataset.route === r.name || (r.name === 'team' && a.dataset.route === 'teams') || (r.name === 'game' && a.dataset.route === 'scores')));
   if (rendering) return; rendering = true;
   try {
-    let html;
+    let html, mount = null;
+    unmountStory();
     switch (r.name) {
+      case 'home': { const id = state.focusTeam; const d = id && ctx.directory ? await loadHome(ctx, id).catch(e => { console.warn('home', e); return null; }) : null; ctx.homeSig = homeSignature(ctx, d); const out = renderHome(ctx, d, { replay: !opts.quiet }); html = out.html; mount = out.mount; break; }
       case 'tv': html = renderTV({ ...ctx, week: ctx.weekKey }, r.params); break;
       case 'rankings': html = renderRankings(ctx); break;
       case 'playoff': html = renderPlayoff(ctx); break;
       case 'teams': html = renderTeams(ctx); break;
       case 'team': html = ctx.directory ? await renderTeam(ctx, { id: r.id }) : '<div class="panel empty">Loading…</div>'; break;
       case 'game': html = await renderGame(ctx, { id: r.id }); break;
-      default: html = renderScores({ ...ctx, week: ctx.weekKey });
+      case 'scores': default: html = renderScores({ ...ctx, week: ctx.weekKey });
     }
     const y = window.scrollY;
     view.innerHTML = html;
     if (r.name === route().name) window.scrollTo(0, Math.min(y, document.body.scrollHeight));
+    if (mount) mount(view);
+    applyTheme();
   } catch (e) {
     console.error(e);
     view.innerHTML = `<div class="panel empty">Something went wrong loading this page.<br><span class="muted">${esc(e.message)}</span></div>`;
@@ -140,7 +145,8 @@ async function refresh() {
     await loadWeek(ctx.weekKey);
     ctx.error = null;
     const r = route();
-    if (r.name !== 'team' && r.name !== 'teams' && r.name !== 'rankings') await render();
+    if (r.name === 'home') { const id = state.focusTeam; if (id && ctx.directory) { delete ctx.home?.[id]; const d = await loadHome(ctx, id).catch(() => null); if (homeSignature(ctx, d) !== ctx.homeSig) await render({ quiet: true }); } }
+    else if (r.name !== 'team' && r.name !== 'teams' && r.name !== 'rankings') await render();
     renderMyTeams();
   } catch (e) { ctx.error = e; console.warn(e); }
   statusFromData();
@@ -152,6 +158,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) refr
 
 function renderMyTeams() {
   const el = $('#myteams');
+  el.hidden = route().name === 'home';
   const ids = state.prefs.teams;
   const d = ctx.directory;
   const chips = ids.map(id => {
@@ -182,6 +189,7 @@ function openModal() {
       <div><div class="section-title">My Streaming Services</div><div class="sub" style="margin-bottom:8px">Pick what you subscribe to and every game will show you the way you can actually watch it.</div>
         <div class="opts">${Object.values(SERVICES).map(s => `<button class="btn${state.myServices.has(s.id) ? ' on' : ''}" data-service="${s.id}" type="button">${esc(s.name)}</button>`).join('')}</div></div>
       <div><div class="section-title">Layout</div><div class="sub" style="margin-bottom:8px">Desktop shows the full layout (including the TV grid) on a phone — pinch to zoom.</div><div class="opts">${[['auto', 'Phone'], ['desktop', 'Desktop']].map(([v, l]) => `<button class="btn${state.prefs.layout === v ? ' on' : ''}" data-layout="${v}" type="button">${l}</button>`).join('')}</div></div>
+      <div><div class="section-title">Theme</div><div class="opts">${[['default', 'Default'], ['team', 'Team colors']].map(([v, l]) => `<button class="btn${state.prefs.theme === v ? ' on' : ''}" data-theme-opt="${v}" type="button">${l}</button>`).join('')}</div></div>
       <div><div class="section-title">Time Zone</div><div class="opts">${['local', 'pt', 'et'].map(t => `<button class="btn${state.prefs.tz === t ? ' on' : ''}" data-tz="${t}" type="button">${t === 'local' ? 'My device' : t.toUpperCase()}</button>`).join('')}</div></div>
       <div><div class="section-title">Share Your Setup</div><div class="sub" style="margin-bottom:8px">Send this link and whoever opens it starts with your teams already picked.</div><div class="share-url" id="share-url">${esc(state.shareUrl())}</div><div style="margin-top:8px"><button class="btn btn-amber" id="copy-url" type="button">Copy link</button></div></div>
       <div class="sub">Saved on this device. Sign-in to sync across devices is coming next.</div>`;
@@ -193,12 +201,35 @@ function openModal() {
     const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const tz = e.target.closest('[data-tz]'); if (tz) { state.setTz(tz.dataset.tz); draw($('#team-search')?.value.toLowerCase() || ''); return; }
+    const to = e.target.closest('[data-theme-opt]'); if (to) { state.setTheme(to.dataset.themeOpt); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const ly = e.target.closest('[data-layout]'); if (ly) { state.setLayout(ly.dataset.layout); applyLayout(); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     if (e.target.id === 'copy-url') { navigator.clipboard?.writeText(state.shareUrl()).then(() => { e.target.textContent = 'Copied'; setTimeout(() => e.target.textContent = 'Copy link', 1500); }); }
   };
   $('#modal').hidden = false;
 }
 function closeModal() { $('#modal').hidden = true; }
+
+// ---- Theme: default instrument look, or the focused team's colors (from ESPN) --------
+function hex(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h.split('').map(x => x + x).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); }
+function mix(a, b, w) { const A = hex(a), B = hex(b); return '#' + A.map((v, i) => Math.round(v * (1 - w) + B[i] * w).toString(16).padStart(2, '0')).join(''); }
+function lum(h) { const [r, g, b] = hex(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
+async function applyTheme() {
+  const root = document.documentElement;
+  document.querySelectorAll('[data-theme]').forEach(b => b.classList.toggle('on', b.dataset.theme === state.prefs.theme));
+  const id = state.focusTeam;
+  if (state.prefs.theme !== 'team' || !id) { root.removeAttribute('data-theme'); return; }
+  let c = ctx.teamColors?.[id];
+  if (!c) { try { const t = (await api.team(id)).team; c = { color: '#' + (t.color || '333333'), alt: '#' + (t.alternateColor || 'ffffff') }; } catch { c = { color: '#333333', alt: '#ffffff' }; } (ctx.teamColors = ctx.teamColors || {})[id] = c; }
+  if (state.focusTeam !== id || state.prefs.theme !== 'team') return;
+  const main = lum(c.color) > 200 ? c.alt : c.color; // some teams list white/gold first; theme off the darker one
+  const other = main === c.color ? c.alt : c.color;
+  const altOk = lum(other) > 120 && lum(other) < 245;
+  const accent = altOk ? other : (lum(main) < 90 ? mix(main, '#ffffff', 0.32) : mix(main, '#ffffff', 0.15));
+  const vars = { '--team-bg': mix(main, '#000000', 0.86), '--team-bg2': mix(main, '#000000', 0.82), '--team-panel': mix(main, '#000000', 0.76), '--team-line': mix(main, '#000000', 0.58), '--team-line3': mix(main, '#000000', 0.45), '--team-accent': accent, '--team-accent-dim': mix(accent, '#000000', 0.6) };
+  Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+  root.setAttribute('data-theme', 'team');
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', vars['--team-bg2']);
+}
 
 // ---- Layout (phone vs forced desktop) --------------------------------------
 // 'desktop' widens the viewport to 1200 CSS px so phones render the full desktop layout, zoomed out;
@@ -223,24 +254,28 @@ view.addEventListener('click', e => {
   if (vw) { const q = new URLSearchParams(route().params); q.set('view', vw.dataset.view); location.hash = `#/tv?${q}`; return; }
   const st = e.target.closest('[data-star]');
   if (st) { e.stopPropagation(); state.toggleTeam(st.dataset.star); return; }
+  const fc = e.target.closest('[data-focus]');
+  if (fc) { state.setFocus(fc.dataset.focus); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (e.target.closest('#add-team, #add-team-2')) { openModal(); return; }
   const tt = e.target.closest('[data-team]');
   if (tt && !e.target.closest('[data-star]')) { location.hash = `#/team/${tt.dataset.team}`; return; }
 });
 $('#btn-settings').onclick = openModal;
+document.querySelector('.theme-toggle').addEventListener('click', e => { const b = e.target.closest('[data-theme]'); if (b) state.setTheme(b.dataset.theme); });
 $('#myteams').addEventListener('click', e => { if (e.target.closest('#add-team')) openModal(); });
 $('#modal-close').onclick = closeModal;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { render(); renderMyTeams(); window.scrollTo(0, 0); });
 // Re-render when crossing the phone/desktop breakpoint (rotation, split view).
 const mq = window.matchMedia('(max-width: 700px)');
 (mq.addEventListener ? mq.addEventListener.bind(mq) : mq.addListener.bind(mq))('change', () => render());
-onChange(() => { render(); renderMyTeams(); });
+onChange(() => { applyTheme(); render(); renderMyTeams(); });
 
 // ---- Boot ------------------------------------------------------------------
 
 (async function boot() {
-  applyLayout();
+  applyLayout(); applyTheme();
   setStatus('', 'LOADING');
   renderMyTeams();
   view.innerHTML = '<div class="panel empty">Loading this week\'s slate…</div>';

@@ -42,12 +42,13 @@ page.on('pageerror', e => console.log('PAGE ERROR', e.message));
 page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
 await page.addInitScript(() => { try { localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['peacock', 'yttv'], tz: 'local', filter: 'all' })); } catch {} });
 
-const shots = [['scores', '#/scores'], ['tv', '#/tv'], ['rankings', '#/rankings'], ['playoff', '#/playoff'], ['teams', '#/teams'], ['team', '#/team/2483'], ['game', '#/game/4018100']];
+const shots = [['home', '#/home'], ['scores', '#/scores'], ['tv', '#/tv'], ['rankings', '#/rankings'], ['playoff', '#/playoff'], ['teams', '#/teams'], ['team', '#/team/2483'], ['game', '#/game/4018100']];
 await page.goto(`http://localhost:${port}/`);
 await page.waitForTimeout(1500);
 for (const [name, hash] of shots) {
   await page.evaluate(h => { location.hash = h; }, hash);
   await page.waitForTimeout(1200);
+  if (name === 'home') { await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(2500); await page.evaluate(() => window.scrollTo(0, 0)); await page.waitForTimeout(400); }
   await page.screenshot({ path: `${out}/${name}.png`, fullPage: true });
   const w = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, win: window.innerWidth }));
   console.log(name, w.doc > w.win ? `HORIZONTAL OVERFLOW ${w.doc}>${w.win}` : 'ok');
