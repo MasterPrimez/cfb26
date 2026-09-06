@@ -82,15 +82,21 @@ export function schedule(id) {
   return { team: team(TEAMS.find(x => x[0] === id) || TEAMS[0]), season: { year: 2026 }, events };
 }
 
+function venueWithImages(c) {
+  const home = c.competitors.find(x => x.homeAway === 'home');
+  const vid = String(home?.team?.id) === '194' ? '3861' : '3910';
+  return { ...(c.venue || {}), id: vid, images: [{ href: `https://a.espncdn.com/i/venues/college-football/day/interior/${vid}.jpg`, rel: ['full', 'day', 'interior'] }] };
+}
 export function summary(eventId) {
   const sb = scoreboard();
   const e = sb.events.find(x => x.id === eventId) || sb.events[0];
   const c = e.competitions[0];
   const [h, a] = c.competitors;
   const stat = (n, v) => ({ name: n, displayValue: v });
+  if (c.status?.type?.state === 'pre') return { header: { competitions: [c], week: e.week?.number }, gameInfo: { venue: venueWithImages(c) }, pickcenter: c.odds, boxscore: { teams: [] }, leaders: [], scoringPlays: [], winprobability: [] };
   return {
     header: { week: 1, competitions: [{ date: e.date, status: e.status, competitors: c.competitors, broadcasts: c.broadcasts }] },
-    gameInfo: { venue: { fullName: c.venue.fullName.replace(/\s*\(.*\)$/, ''), address: c.venue.address, capacity: 102780 }, weather: { displayValue: 'Clear', temperature: 74 } },
+    gameInfo: { venue: { ...venueWithImages(c), fullName: c.venue.fullName.replace(/\s*\(.*\)$/, ''), address: c.venue.address, capacity: 102780 }, weather: { displayValue: 'Clear', temperature: 74 } },
     boxscore: { teams: [{ team: a.team, statistics: [stat('totalYards', '248'), stat('netPassingYards', '176'), stat('rushingYards', '72'), stat('thirdDownEff', '4-9'), stat('turnovers', '2'), stat('possessionTime', '13:48')] }, { team: h.team, statistics: [stat('totalYards', '312'), stat('netPassingYards', '201'), stat('rushingYards', '111'), stat('thirdDownEff', '6-10'), stat('turnovers', '0'), stat('possessionTime', '17:30')] }] },
     leaders: [{ team: h.team, leaders: [{ name: 'passingYards', displayName: 'Passing Yards', leaders: [{ displayValue: '17/24, 201 YDS, 2 TD', athlete: { shortName: 'J. Sayin' } }] }, { name: 'rushingYards', displayName: 'Rushing Yards', leaders: [{ displayValue: '15 CAR, 94 YDS, 1 TD', athlete: { shortName: 'B. Back' } }] }, { name: 'receivingYards', displayName: 'Receiving Yards', leaders: [{ displayValue: '7 REC, 112 YDS, 1 TD', athlete: { shortName: 'J. Smith' } }] }] }, { team: a.team, leaders: [{ name: 'passingYards', displayName: 'Passing Yards', leaders: [{ displayValue: '14/22, 176 YDS, 1 TD', athlete: { shortName: 'A. Manning' } }] }] }],
     scoringPlays: [{ period: { number: 1 }, clock: { displayValue: '10:08' }, team: h.team, text: 'N. Frazier run for 14 yds, for a TD (P. Woodring KICK)', awayScore: 0, homeScore: 7 }, { period: { number: 2 }, clock: { displayValue: '2:08' }, team: a.team, text: 'P. Hurless 37 yd FG GOOD', awayScore: 3, homeScore: 14 }],

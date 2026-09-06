@@ -48,9 +48,33 @@ export async function loadHome(ctx, teamId) {
 
   const prob = winProb(team, opp, game, next);
   const rankHist = rankHistory(ctx, teamId, apRank);
-  const out = { t: Date.now(), team, opp, next, game, past, prob, apRank: apRank?.current || null, cfpSeed: cfpIdx >= 0 ? cfpIdx + 1 : null, cfpOfficial: !!ctx.playoff?.official, confPlace, confTeams, rankHist, remaining: events.filter(e => e.state !== 'post').length };
+  // Stadium photos for the hero: my home field + the opponent's home field (ESPN venue images).
+  const [myVenue, oppVenue] = await Promise.all([venuePhoto(teamId, events), opp ? venuePhoto(opp.id) : null]);
+  const out = { t: Date.now(), team, opp, next, game, past, prob, photos: { mine: myVenue, opp: oppVenue }, apRank: apRank?.current || null, cfpSeed: cfpIdx >= 0 ? cfpIdx + 1 : null, cfpOfficial: !!ctx.playoff?.official, confPlace, confTeams, rankHist, remaining: events.filter(e => e.state !== 'post').length };
   ctx.home[teamId] = out;
   return out;
+}
+
+// A team's home-stadium photo: first non-neutral home game on its schedule → game summary → venue images.
+// Cached per team in localStorage (stadiums don't change mid-season).
+const VENUE_KEY = 'cfb26.venuephoto.v1';
+async function venuePhoto(teamId, events) {
+  let cache = {}; try { cache = JSON.parse(localStorage.getItem(VENUE_KEY) || '{}'); } catch {}
+  if (cache[teamId] !== undefined) return cache[teamId];
+  let url = null;
+  try {
+    let evs = events;
+    if (!evs) { const sched = await api.schedule(teamId); evs = (sched.events || []).map(e => normSched(e, teamId)); }
+    const home = evs.find(e => e.home && !e.neutral) || evs[0];
+    if (home) {
+      const sum = await api.summary(home.id);
+      const imgs = sum?.gameInfo?.venue?.images || [];
+      const pick = imgs.find(i => (i.rel || []).includes('interior')) || imgs[0];
+      url = pick?.href || null;
+    }
+  } catch {}
+  cache[teamId] = url; try { localStorage.setItem(VENUE_KEY, JSON.stringify(cache)); } catch {}
+  return url;
 }
 
 function normSched(e, teamId) {
@@ -121,7 +145,9 @@ export function renderHome(ctx, d, opts = {}) {
     const when = next.tbd ? fmtDay(next.date) + ' · time TBA' : `${fmtDay(next.date)} · ${fmtTime(next.date)} ${tzLabel()}`;
     const eyebrow = live ? `Live now · ${esc(game.detail)}` : final ? 'Final' : `Next up · ${esc(when)}`;
     const scoreLine = (live || final) && game ? `<div class="disp story-score">${next.home ? game.home.score : game.away.score}<span class="dash">–</span>${next.home ? game.away.score : game.home.score}</div>` : '';
-    hero = `<div class="story-hero-wrap" id="herowrap"><section class="story-hero" id="hero">
+    const ph = d.photos || {};
+    const bg = (ph.mine || ph.opp) ? `<div class="hero-bg" aria-hidden="true">${ph.mine ? `<div class="ph l" style="background-image:url('${esc(ph.mine)}')"></div>` : ''}${ph.opp ? `<div class="ph r" style="background-image:url('${esc(ph.opp)}')"></div>` : ''}<div class="tint" style="--cl:${esc(team.color)};--cr:${esc(opp.color)}"></div><div class="grain"></div></div>` : '';
+    hero = `<div class="story-hero-wrap" id="herowrap"><section class="story-hero${bg ? ' has-bg' : ''}" id="hero">${bg}
       <div class="label h-eyebrow" style="opacity:0">${eyebrow}</div>
       <div class="story-logos">
         <div class="l" style="--lx:-1"><div class="story-logo"><img src="${esc(team.logo)}" alt=""></div><div class="mono muted sub">${apRank ? '#' + apRank + ' · ' : ''}${esc(team.record)}</div></div>

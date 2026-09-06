@@ -17,6 +17,7 @@ const root = new URL('..', import.meta.url).pathname;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = createServer(async (req, res) => {
   let p = req.url.split('?')[0]; if (p === '/') p = '/index.html';
+  if (p === '/js/config.js') { res.writeHead(200, { 'content-type': 'text/javascript' }); return res.end("export const API_URL = 'https://api.test';"); }
   try { const body = await readFile(join(root, p)); res.writeHead(200, { 'content-type': MIME[extname(p)] || 'application/octet-stream' }); res.end(body); }
   catch { res.writeHead(404); res.end('nf'); }
 }).listen(0);
@@ -43,12 +44,29 @@ await context.route(/site\.api\.espn\.com/, route => {
 });
 await context.route(/a\.espncdn\.com/, async route => {
   const m = route.request().url().match(/\/(\d+)\.png/);
+  const v = route.request().url().match(/\/venues\/.*\/(\d+)\.jpg/);
+  if (v) { try { const body = await readFile(join(root, 'tools/logos', 'venue-' + v[1] + '.jpg')); return route.fulfill({ status: 200, contentType: 'image/jpeg', body }); } catch {} }
   try { const body = await readFile(join(root, 'tools/logos', (m ? m[1] : 'x') + '.png')); return route.fulfill({ status: 200, contentType: 'image/png', body }); } catch {}
   try { const r = await route.fetch(); if (r.status() !== 200) throw 0; route.fulfill({ response: r }); } catch { route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="30" fill="#444"/></svg>' }); }
 });
+// Mock accounts API (same shape as the Cloudflare Worker).
+let mockPrefs = null;
+await context.route(/api\.test/, async route => {
+  const u = new URL(route.request().url()); const m = route.request().method();
+  const H = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'Content-Type, Authorization', 'access-control-allow-methods': 'GET,POST,PUT,OPTIONS' };
+  if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: H });
+  const j = (status, body) => route.fulfill({ status, headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (u.pathname === '/config') return j(200, { googleClientId: null });
+  if (u.pathname === '/auth/signup' || u.pathname === '/auth/login') return j(200, { token: 't1', user: { id: 'u1', email: JSON.parse(route.request().postData() || '{}').email || 'you@email.com' } });
+  if (u.pathname === '/auth/me') return j(200, { user: { id: 'u1', email: 'you@email.com' } });
+  if (u.pathname === '/auth/logout') return j(200, { ok: true });
+  if (u.pathname === '/prefs' && m === 'GET') return j(200, { prefs: mockPrefs, updated_at: null });
+  if (u.pathname === '/prefs' && m === 'PUT') { mockPrefs = JSON.parse(route.request().postData()).prefs; return j(200, { ok: true }); }
+  return j(404, { error: 'nf' });
+});
 const page = await context.newPage();
 page.on('pageerror', e => console.log('PAGE ERROR', e.message));
-await page.addInitScript(() => { try { localStorage.setItem('cfb26.welcome.v1', '1'); localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: ['194', '2483'], services: ['yttv'], tz: 'local', filter: 'all', theme: 'default' })); } catch {} });
+await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('cfb26.prefs.v1', JSON.stringify({ teams: [], services: [], tz: 'local', filter: 'all', theme: 'default' })); } catch {} });
 
 // ---- overlay (captions, title cards, fake cursor) ---------------------------------------------
 const OVERLAY = `
@@ -106,18 +124,52 @@ const url = 'cfb26-master-primez.vercel.app';
 // ---- scenes ------------------------------------------------------------------------------
 await page.goto(`http://localhost:${port}/#/home`);
 await page.waitForTimeout(1500);
-await ev(() => scrollTo(0, 0));
+const typeInto = async (sel, text) => { for (let k = 1; k <= text.length; k++) { await ev(([s, v]) => { const i = document.querySelector(s); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }, [sel, text.slice(0, k)]); await animate(0.09); } };
+const modalScroll = async (sel) => { await ev(s => document.querySelector(s)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), sel); await animate(0.6); };
 
-// 1. Title card
-await card('title', `<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Your college football season,<br>one screen at a time.</div><div class="s">A quick tour</div>`, 2.6);
+// 1. Title
+await card('title', `<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Your college football season,<br>one screen at a time.</div><div class="s">Setup · Sign in · Every feature</div>`, 3.0);
 
-// 2. Home story
-await ev(() => { location.hash = '#/home'; }); await page.waitForTimeout(400);
-await animate(1.6); // intro autoplay
+// 2. Welcome screen (real first visit)
+await animate(0.6);
+await caption('welcome'); await animate(1.2); await hold(0.8);
+await tap('#welcome-skip'); await page.waitForTimeout(500); await cursorOff(); await animate(0.6);
+await caption(null);
+
+// 3. Setup: teams
+await tap('#btn-settings'); await page.waitForTimeout(600); await cursorOff();
+await caption('setup'); await animate(0.4);
+await typeInto('#team-search', 'Ohio'); await animate(0.4);
+await tap('#modal-body [data-star="194"]'); await page.waitForTimeout(300); await cursorOff(); await hold(0.5);
+await ev(() => { const i = document.querySelector('#team-search'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); }); await animate(0.3);
+await typeInto('#team-search', 'Ore'); await animate(0.3);
+await tap('#modal-body [data-star="2483"]'); await page.waitForTimeout(300); await cursorOff(); await hold(0.6);
+// services
+await caption('services'); await animate(0.3);
+await tap('[data-service="yttv"]'); await cursorOff(); await animate(0.3);
+await tap('[data-service="peacock"]'); await cursorOff(); await hold(0.7);
+// theme
+await caption('theme'); await animate(0.3);
+await tap('[data-theme-opt="team"]'); await cursorOff(); await animate(0.8); await hold(0.6);
+await caption(null);
+
+// 4. Login: create account
+await modalScroll('.account');
+await caption('account'); await animate(0.5);
+await tap('#signin-toggle'); await page.waitForTimeout(300); await cursorOff(); await animate(0.3);
+await typeInto('#signin-email', 'you@email.com'); await animate(0.2);
+await ev(() => { const i = document.querySelector('#signin-pw'); i.value = 'go-buckeyes-2026'; }); await animate(0.5);
+await tap('#signin-form button[type="submit"]'); await page.waitForTimeout(900); await cursorOff(); await animate(0.6);
+await caption('synced'); await animate(1.0); await hold(0.8);
+await caption(null);
+await tap('#modal-close'); await page.waitForTimeout(400); await cursorOff();
+
+// 5. Home story
+await ev(() => { location.hash = '#/home'; }); await page.waitForTimeout(500); await ev(() => scrollTo(0, 0));
+await animate(1.6);
 await caption('home', 1.2);
 await scrollToEl('#prob', 1.6, 0);
-await caption('prob');
-await animate(1.4); await hold(0.6);
+await caption('prob'); await animate(1.4); await hold(0.6);
 await scrollToEl('#matchup', 1.3);
 await caption('matchup'); await animate(1.0); await hold(0.5);
 await scrollToEl('#season', 1.3);
@@ -130,37 +182,38 @@ await scrollToEl('#deeper', 1.1);
 await caption('deeper'); await animate(0.9); await hold(0.6);
 await caption(null);
 
-// 3. Scores
-const navSel = PHONE ? '#tabbar a[href="#/scores"]' : '#nav a[href="#/scores"]';
-await tap(navSel); await page.waitForTimeout(700); await cursorOff();
+// 6. Scores → upcoming game (How to Watch) → live game (box score)
+await tap(PHONE ? '#tabbar a[href="#/scores"]' : '#nav a[href="#/scores"]'); await page.waitForTimeout(700); await cursorOff();
 await caption('scores'); await animate(1.2); await hold(0.8);
-if (!PHONE) { await scrollTo(500, 1.2); await hold(0.4); await scrollTo(0, 0.8); }
-else { await scrollTo(700, 1.4); await hold(0.4); await scrollTo(0, 0.8); }
+await scrollTo(PHONE ? 700 : 500, 1.4); await hold(0.4); await scrollTo(0, 0.8);
+await caption('watch'); await animate(0.3);
+await ev(() => { location.hash = '#/game/4018101'; }); await page.waitForTimeout(1100); await animate(1.0);
+await scrollTo(PHONE ? 420 : 0, 1.0); await hold(0.8);
 await caption('boxscore'); await animate(0.3);
-await tap('[data-game]'); await page.waitForTimeout(900); await cursorOff(); await animate(0.8); await hold(0.9);
-if (!PHONE) { await scrollTo(400, 1.0); await hold(0.5); }
+await ev(() => { location.hash = '#/game/4018100'; }); await page.waitForTimeout(1100); await animate(0.8);
+await scrollTo(PHONE ? 500 : 350, 1.0); await hold(0.6);
 await caption(null);
 
-// 4. TV guide
+// 7. TV guide
 await tap(PHONE ? '#tabbar a[href="#/tv"]' : '#nav a[href="#/tv"]'); await page.waitForTimeout(900); await cursorOff();
 await caption(PHONE ? 'tv_phone' : 'tv'); await animate(1.2); await hold(0.8);
 await scrollTo(PHONE ? 600 : 500, 1.4); await hold(0.5); await scrollTo(0, 0.8);
 await caption(null);
 
-// 5. Rankings (desktop) / skip on phone
+// 8. Rankings (desktop only)
 if (!PHONE) {
   await tap('#nav a[href="#/rankings"]'); await page.waitForTimeout(900); await cursorOff();
   await caption('rankings'); await animate(1.0); await hold(0.9);
   await caption(null);
 }
 
-// 6. Playoff
+// 9. Playoff
 await tap(PHONE ? '#tabbar a[href="#/playoff"]' : '#nav a[href="#/playoff"]'); await page.waitForTimeout(900); await cursorOff();
 await caption('playoff'); await animate(1.2); await hold(0.8);
 if (PHONE) { await scrollTo(600, 1.4); await hold(0.4); }
 await caption(null);
 
-// 7. Teams → team page
+// 10. Teams → team page
 await tap(PHONE ? '#tabbar a[href="#/teams"]' : '#nav a[href="#/teams"]'); await page.waitForTimeout(900); await cursorOff();
 await caption('teams'); await animate(0.9); await hold(0.6);
 await tap('a[href="#/team/130"], [data-team="130"]'); await page.waitForTimeout(1000); await cursorOff();
@@ -168,25 +221,13 @@ await caption('teampage'); await animate(1.0); await hold(0.7);
 await scrollTo(PHONE ? 500 : 350, 1.2); await hold(0.4);
 await caption(null);
 
-// 8. My Setup
-await ev(() => scrollTo(0, 0)); await page.waitForTimeout(200);
-await tap('#btn-settings'); await page.waitForTimeout(600); await cursorOff();
-await caption('setup'); await animate(0.6);
-for (const q of ['M', 'Mi', 'Mic', 'Mich']) { await ev(v => { const i = document.querySelector('#team-search'); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }, q); await animate(0.14); } await animate(0.4);
-await tap('#modal-body [data-star="130"]'); await page.waitForTimeout(300); await cursorOff(); await hold(0.7);
-await caption('services'); await animate(0.4);
-await tap('[data-service="peacock"]'); await cursorOff(); await hold(0.6);
-await caption('theme'); await animate(0.3);
-await tap('[data-theme-opt="team"]'); await cursorOff(); await animate(0.6); await hold(0.6);
-await caption('share'); await animate(0.3);
-await cursorTo('#copy-url'); await hold(1.2); await cursorOff();
-await caption(null);
-await tap('#modal-close'); await page.waitForTimeout(400); await cursorOff();
-await go('#/home', 500); await ev(() => scrollTo(0, 0)); await animate(1.6);
-await caption('saved'); await animate(1.0); await hold(1.2);
+// 11. Beer + feedback
+await ev(() => { location.hash = '#/home'; }); await page.waitForTimeout(500); await ev(() => scrollTo(0, 0)); await animate(1.2);
+await caption('beer'); await animate(0.4);
+await cursorTo('#btn-beer'); await hold(1.2); await cursorOff(); await hold(0.6);
 await caption(null);
 
-// 9. End card
+// 12. End card
 await card('end', `<div class="brand"><i>CFB</i><s>/</s>26</div><div class="h">Pick your teams.<br>Know how to watch.</div><div class="url">${url}</div>`, 3.0);
 
 list.push(`file '${String(n - 1).padStart(4, '0')}.png'`);
