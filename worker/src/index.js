@@ -8,7 +8,8 @@
 //   GET  /auth/me       (Bearer)                 → {user}
 //   GET  /prefs         (Bearer)                 → {prefs, updated_at}
 //   PUT  /prefs         (Bearer) {prefs}         → {ok, updated_at}
-//   GET  /config                                 → {googleClientId}
+//   GET  /config                                 → {googleClientId, adminEmails}
+//   POST /admin/stats   (Bearer) {password}      → stats   (admins only; password re-checked)
 //
 // Passwords: PBKDF2-SHA256, 100k iterations, per-user salt. Sessions: 32-byte random bearer token,
 // only its SHA-256 is stored, 90-day expiry. All rows are scoped to the signed-in user.
@@ -40,7 +41,7 @@ async function route(req, env) {
   const m = req.method;
 
   if (m === 'GET' && p === '/') return json({ ok: true, service: 'cfb26-api' });
-  if (m === 'GET' && p === '/config') return json({ googleClientId: env.GOOGLE_CLIENT_ID || null });
+  if (m === 'GET' && p === '/config') return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, adminEmails: admins(env) });
 
   if (m === 'POST' && p === '/auth/signup') return signup(req, env);
   if (m === 'POST' && p === '/auth/login') return login(req, env);
@@ -54,6 +55,7 @@ async function route(req, env) {
     const row = await env.DB.prepare('select prefs, updated_at from profiles where user_id = ?').bind(session.user.id).first();
     return json({ prefs: row ? JSON.parse(row.prefs) : null, updated_at: row?.updated_at || null });
   }
+  if (m === 'POST' && p === '/admin/stats') return adminStats(req, env, session);
   if (m === 'PUT' && p === '/prefs') {
     const body = await readJson(req);
     const prefs = sanitizePrefs(body.prefs);
@@ -135,7 +137,49 @@ async function requireSession(req, env) {
     if (row) await env.DB.prepare('delete from sessions where token_hash = ?').bind(tokenHash).run();
     throw httpError(401, 'Session expired. Sign in again.');
   }
+  const now = new Date().toISOString();
+  if (!row.last_seen || row.last_seen < new Date(Date.now() - 36e5).toISOString()) {
+    try { await env.DB.prepare('update sessions set last_seen = ? where token_hash = ?').bind(now, tokenHash).run(); } catch {}
+  }
   return { token_hash: row.token_hash, user: { id: row.id, email: row.email } };
+}
+
+// ---- admin ------------------------------------------------------------------
+
+function admins(env) { return (env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean); }
+
+// Private stats. Only listed admins, and they must re-enter their password (step-up) each time.
+async function adminStats(req, env, session) {
+  if (!admins(env).includes(session.user.email)) throw httpError(403, 'Not available.');
+  const { password } = await readJson(req);
+  const u = await env.DB.prepare('select pw_hash, pw_salt from users where id = ?').bind(session.user.id).first();
+  if (!u?.pw_hash) throw httpError(403, 'Set a password on this account first.');
+  const hash = await pbkdf2(password || '', unb64(u.pw_salt));
+  if (!timingSafeEqual(b64(hash), u.pw_hash)) throw httpError(401, 'Wrong password.');
+
+  const day = n => new Date(Date.now() - n * 864e5).toISOString();
+  const one = async (sql, ...args) => (await env.DB.prepare(sql).bind(...args).first())?.n ?? 0;
+  const totals = {
+    users: await one('select count(*) n from users'),
+    new7: await one('select count(*) n from users where created_at >= ?', day(7).slice(0, 19).replace('T', ' ')),
+    new30: await one('select count(*) n from users where created_at >= ?', day(30).slice(0, 19).replace('T', ' ')),
+    active7: await one('select count(distinct user_id) n from sessions where coalesce(last_seen, created_at) >= ?', day(7)),
+    active1: await one('select count(distinct user_id) n from sessions where coalesce(last_seen, created_at) >= ?', day(1)),
+    google: await one('select count(*) n from users where google_sub is not null'),
+  };
+  const rows = (await env.DB.prepare(`select u.email, u.created_at, (u.google_sub is not null) as google,
+      (select max(coalesce(s.last_seen, s.created_at)) from sessions s where s.user_id = u.id) as last_seen,
+      (select count(*) from sessions s where s.user_id = u.id and s.expires_at > ?) as devices,
+      p.prefs from users u left join profiles p on p.user_id = u.id order by u.created_at desc limit 500`).bind(new Date().toISOString()).all()).results || [];
+  const teamCount = {}, serviceCount = {};
+  const users = rows.map(r => {
+    let prefs = {}; try { prefs = JSON.parse(r.prefs || '{}'); } catch {}
+    (prefs.teams || []).forEach(t => { teamCount[t] = (teamCount[t] || 0) + 1; });
+    (prefs.services || []).forEach(t => { serviceCount[t] = (serviceCount[t] || 0) + 1; });
+    return { email: r.email, created_at: r.created_at, last_seen: r.last_seen, devices: r.devices, google: !!r.google, teams: prefs.teams || [], services: prefs.services || [], theme: prefs.theme || 'default' };
+  });
+  const top = obj => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, n]) => ({ id, n }));
+  return json({ totals, users, topTeams: top(teamCount), topServices: top(serviceCount), generated_at: new Date().toISOString() });
 }
 
 // ---- helpers ---------------------------------------------------------------

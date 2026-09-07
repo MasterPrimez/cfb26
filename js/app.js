@@ -1,6 +1,6 @@
 import { api, normalizeEvent, normalizeDirectory } from './api.js';
 import { state, onChange, fmtTime, tzLabel } from './state.js';
-import { initAuth, onAuth, currentUser, authEnabled, googleEnabled, signIn, signUp, signOut, mountGoogleButton } from './auth.js';
+import { initAuth, onAuth, currentUser, authEnabled, googleEnabled, isAdmin, signIn, signUp, signOut, mountGoogleButton } from './auth.js';
 import { esc, wire } from './ui.js';
 import { SERVICES } from './networks.js';
 import { renderScores } from './views/scores.js';
@@ -8,6 +8,7 @@ import { renderTV } from './views/tv.js';
 import { renderRankings } from './views/rankings.js';
 import { renderPlayoff, projectPlayoff } from './views/playoff.js';
 import { renderTeams } from './views/teams.js';
+import { renderStats } from './views/stats.js';
 import { renderTeam } from './views/team.js';
 import { renderGame } from './views/game.js';
 import { renderHome, loadHome, unmountStory, homeSignature } from './views/home.js';
@@ -52,6 +53,7 @@ async function render(opts = {}) {
       case 'rankings': html = renderRankings(ctx); break;
       case 'playoff': html = renderPlayoff(ctx); break;
       case 'teams': html = renderTeams(ctx); break;
+      case 'stats': { const out = renderStats(ctx); html = out.html; mount = out.mount || null; break; }
       case 'team': html = ctx.directory ? await renderTeam(ctx, { id: r.id }) : '<div class="panel empty">Loading…</div>'; break;
       case 'game': html = await renderGame(ctx, { id: r.id }); break;
       case 'scores': default: html = renderScores({ ...ctx, week: ctx.weekKey });
@@ -186,7 +188,7 @@ function openModal() {
     const u = currentUser();
     const mode = body.dataset.authMode || 'in';
     const account = !authEnabled() ? ''
-      : u ? `<div class="account on"><div><div class="section-title" style="margin-bottom:2px">Synced</div><div class="sub">Signed in as ${esc(u.email)} · your teams and services follow you to any device.</div></div><button class="btn" id="btn-signout" type="button">Sign out</button></div>`
+      : u ? `<div class="account on"><div><div class="section-title" style="margin-bottom:2px">Synced</div><div class="sub">Signed in as ${esc(u.email)} · your teams and services follow you to any device.</div></div><div style="display:flex;gap:8px">${isAdmin() ? '<a class="btn btn-amber" href="#/stats" id="btn-stats">Stats</a>' : ''}<button class="btn" id="btn-signout" type="button">Sign out</button></div></div>`
       : `<div class="account"><div><div class="section-title" style="margin-bottom:2px">${mode === 'up' ? 'Create an account' : 'Sign in to sync'}</div><div class="sub">Optional. Your teams and services follow you to your phone and laptop.</div></div>
           <form class="signin" id="signin-form" data-mode="${mode}"><input class="search" id="signin-email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required><input class="search" id="signin-pw" type="password" autocomplete="${mode === 'up' ? 'new-password' : 'current-password'}" placeholder="${mode === 'up' ? 'Choose a password (8+ characters)' : 'Password'}" minlength="8" required><button class="btn btn-amber" type="submit">${mode === 'up' ? 'Create account' : 'Sign in'}</button></form>
           <div class="sub" id="signin-msg"></div>
@@ -220,6 +222,7 @@ function openModal() {
 
   body.onclick = e => {
     if (e.target.id === 'btn-signout') { signOut(); return; }
+    if (e.target.id === 'btn-stats') { closeModal(); return; }
     if (e.target.id === 'signin-toggle') { body.dataset.authMode = body.dataset.authMode === 'up' ? 'in' : 'up'; draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const s = e.target.closest('[data-service]'); if (s) { state.toggleService(s.dataset.service); draw($('#team-search')?.value.toLowerCase() || ''); return; }
     const st = e.target.closest('[data-star]'); if (st) { state.toggleTeam(st.dataset.star); draw($('#team-search')?.value.toLowerCase() || ''); return; }

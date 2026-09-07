@@ -6,10 +6,12 @@ compatibility_date = "2026-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "cfb26"
-database_id = "39c6c034-aaa3-46ed-9a46-c93516852701"
+database_id = "REPLACE_ME"
 
 [vars]
 # Browser origins allowed to call this API (comma-separated).
 ALLOWED_ORIGINS = "https://cfb26-master-primez.vercel.app,http://localhost:3000"
 # Optional: Google OAuth client ID enables "Sign in with Google". Leave empty to hide it.
 GOOGLE_CLIENT_ID = ""
+# Who may open the private stats page (comma-separated emails). They re-enter their password to view it.
+ADMIN_EMAILS = "michael.stine@gmail.com"

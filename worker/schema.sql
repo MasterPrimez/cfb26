@@ -11,7 +11,8 @@ create table if not exists sessions (
   token_hash text primary key,   -- sha256 of the bearer token; the raw token only lives in the browser
   user_id text not null references users(id) on delete cascade,
   created_at text not null default (datetime('now')),
-  expires_at text not null
+  expires_at text not null,
+  last_seen text
 );
 create index if not exists sessions_user on sessions(user_id);
 create table if not exists profiles (

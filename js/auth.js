@@ -10,12 +10,15 @@ let token = null;
 let pushTimer = null;
 let applyingRemote = false;
 let googleClientId = null;
+let adminEmails = [];
 const listeners = new Set();
 
 export function onAuth(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function currentUser() { return user; }
 export function authEnabled() { return !!API_URL; }
 export function googleEnabled() { return !!googleClientId; }
+export function isAdmin() { return !!user && adminEmails.includes(user.email); }
+export async function fetchStats(password) { return api('POST', '/admin/stats', { password }); }
 const notify = () => listeners.forEach(fn => fn(user));
 
 async function api(method, path, body) {
@@ -32,7 +35,7 @@ async function api(method, path, body) {
 export async function initAuth() {
   if (!API_URL) { notify(); return; }
   try { token = localStorage.getItem(TOKEN_KEY); } catch {}
-  api('GET', '/config').then(c => { googleClientId = c.googleClientId || null; notify(); }).catch(() => {});
+  api('GET', '/config').then(c => { googleClientId = c.googleClientId || null; adminEmails = c.adminEmails || []; notify(); }).catch(() => {});
   if (token) {
     try { user = (await api('GET', '/auth/me')).user; await pullAndMerge(); }
     catch (e) { if (e.status === 401) { token = null; try { localStorage.removeItem(TOKEN_KEY); } catch {} } }
