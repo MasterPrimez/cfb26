@@ -50,7 +50,7 @@ export async function loadHome(ctx, teamId) {
   const rankHist = rankHistory(ctx, teamId, apRank);
   // Stadium photos for the hero: my home field + the opponent's home field (ESPN venue images).
   const [myVenue, oppVenue] = await Promise.all([venuePhoto(teamId, events), opp ? venuePhoto(opp.id) : null]);
-  const out = { t: Date.now(), team, opp, next, game, past, prob, photos: { mine: myVenue, opp: oppVenue }, apRank: apRank?.current || null, cfpSeed: cfpIdx >= 0 ? cfpIdx + 1 : null, cfpOfficial: !!ctx.playoff?.official, confPlace, confTeams, rankHist, remaining: events.filter(e => e.state !== 'post').length };
+  const out = { t: Date.now(), team, opp, next, game, past, events, prob, photos: { mine: myVenue, opp: oppVenue }, apRank: apRank?.current || null, cfpSeed: cfpIdx >= 0 ? cfpIdx + 1 : null, cfpOfficial: !!ctx.playoff?.official, confPlace, confTeams, rankHist, remaining: events.filter(e => e.state !== 'post').length };
   ctx.home[teamId] = out;
   return out;
 }

@@ -12,7 +12,8 @@ import { renderTeams } from './views/teams.js';
 import { renderStats } from './views/stats.js';
 import { renderTeam } from './views/team.js';
 import { renderGame } from './views/game.js';
-import { renderHome, loadHome, unmountStory, homeSignature } from './views/home.js';
+import { loadHome, unmountStory, homeSignature } from './views/home.js';
+import { renderDash } from './views/dash.js';
 
 const $ = s => document.querySelector(s);
 const view = $('#view');
@@ -49,7 +50,7 @@ async function render(opts = {}) {
     let html, mount = null;
     unmountStory();
     switch (r.name) {
-      case 'home': { const id = state.focusTeam; const d = id && ctx.directory ? await loadHome(ctx, id).catch(e => { console.warn('home', e); return null; }) : null; ctx.homeSig = homeSignature(ctx, d); const out = renderHome(ctx, d, { replay: !opts.quiet }); html = out.html; mount = out.mount; break; }
+      case 'home': { const id = state.focusTeam; const d = id && ctx.directory ? await loadHome(ctx, id).catch(e => { console.warn('home', e); return null; }) : null; ctx.homeSig = homeSignature(ctx, d); const out = renderDash(ctx, d); html = out.html; mount = out.mount; break; }
       case 'tv': html = renderTV({ ...ctx, week: ctx.weekKey }, r.params); mount = mountTV; break;
       case 'rankings': { if (r.params.view === 'graph') { const hist = await loadPollHistory(ctx); const out = renderRankGraph(ctx, hist, r.params); html = out.html; mount = out.mount || null; } else html = renderRankings(ctx); break; }
       case 'playoff': html = renderPlayoff(ctx); break;
@@ -162,7 +163,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) refr
 
 function renderMyTeams() {
   const el = $('#myteams');
-  el.hidden = route().name === 'home';
+  el.hidden = false;
   const ids = state.prefs.teams;
   const d = ctx.directory;
   let colors = {}; try { colors = JSON.parse(localStorage.getItem('cfb26.teamcolor.v1') || '{}'); } catch {}
