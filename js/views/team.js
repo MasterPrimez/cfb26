@@ -2,10 +2,12 @@ import { esc, statusBadge } from '../ui.js';
 import { api, logoUrl, pickLogo } from '../api.js';
 import { fmtShortDate, fmtTime, tzLabel, state } from '../state.js';
 import { primaryNetwork, watchSummary } from '../networks.js';
+import { loadPollHistory } from './rankgraph.js';
+import { renderSeasonGraph } from './teamgraph.js';
 
 export async function renderTeam(ctx, params) {
   const id = params.id;
-  const [team, sched] = await Promise.all([api.team(id).then(r => r.team), api.schedule(id)]);
+  const [team, sched, hist] = await Promise.all([api.team(id).then(r => r.team), api.schedule(id), loadPollHistory(ctx).catch(() => null)]);
   const d = ctx.directory;
   const dirTeam = d?.teams.find(t => t.id === String(id));
   const conf = dirTeam?.conf;
@@ -56,6 +58,7 @@ export async function renderTeam(ctx, params) {
       ${badges}
       <button class="btn${state.isMine(id) ? ' on' : ' btn-amber'}" data-star="${id}" type="button" style="align-self:flex-start">${state.isMine(id) ? '★ In My Teams' : '☆ Add to My Teams'}</button>
     </div>
+    ${renderSeasonGraph(id, hist, events)}
     <div class="grid-main">
       <div class="panel rows">
         <div style="display:flex;align-items:baseline;gap:12px;padding:10px 10px 4px"><div class="disp h3">2026 Schedule</div><div class="sub">TIMES IN ${tzLabel()} · TAP A ROW FOR GAME DETAIL</div></div>
@@ -80,7 +83,7 @@ function normSched(e, teamId) {
   return {
     id: e.id, date: new Date(e.date), week: e.week?.number, state: st.state, detail: st.shortDetail || st.detail || '', tbd: e.timeValid === false || /TBD|TBA/i.test(st.detail || ''),
     home: me.homeAway === 'home', neutral: !!c.neutralSite,
-    opp: { id: opp.team.id, name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, logo: pickLogo(opp.team), rank: rk(opp) },
+    opp: { id: opp.team.id, abbr: opp.team.abbreviation, name: opp.team.shortDisplayName || opp.team.location || opp.team.displayName, logo: pickLogo(opp.team), rank: rk(opp) },
     won: !!me.winner, score: sc(me), oppScore: sc(opp),
     venue: c.venue?.fullName ? c.venue.fullName.replace(/\s*\(.*\)$/, '') + (c.venue.address?.city ? ' · ' + c.venue.address.city + (c.venue.address.state ? ', ' + c.venue.address.state : '') : '') : '',
     network: (c.broadcasts || []).map(b => b.media?.shortName || (b.names && b.names[0])).filter(Boolean)[0] || '',

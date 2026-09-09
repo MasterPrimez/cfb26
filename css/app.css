@@ -532,3 +532,14 @@ html[data-theme="team"] .rank-badge { background: linear-gradient(180deg, var(--
   .rb-n { font-size: 60px; } .rb-n .hash { font-size: 24px; }
   .stat-tiles.inline { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 }
+
+/* Team page → Season graph */
+.teamgraph { margin: 0 0 16px; padding: 0 0 6px; }
+.tg-head { display: flex; align-items: baseline; gap: 12px; padding: 12px 14px 4px; flex-wrap: wrap; }
+.tg-head .rg-legend { margin-left: auto; padding: 0; }
+.rg-legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+.tg-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 6px 8px 0; }
+.tg-svg { width: 100%; height: auto; display: block; }
+.tg-svg a { cursor: pointer; }
+.tg-svg a:hover circle { stroke: var(--text); stroke-width: 2; }
+@media (max-width: 720px) { .tg-head .rg-legend { margin-left: 0; } }
