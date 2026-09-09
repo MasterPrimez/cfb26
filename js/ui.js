@@ -108,3 +108,16 @@ export function wire(root) {
     if (tb) { state.setTz(tb.dataset.tz); return; }
   });
 }
+
+// Segmented view switch with icons: items = [{key, label, icon, href|data}]; current = key.
+const ICONS = {
+  list: '<svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.6" rx=".8"/><rect x="1" y="6.7" width="14" height="2.6" rx=".8"/><rect x="1" y="11.4" width="14" height="2.6" rx=".8"/></svg>',
+  chart: '<svg viewBox="0 0 16 16"><path d="M1.5 12.5 6 7.5l3 3 5.5-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="7.5" r="1.6"/><circle cx="9" cy="10.5" r="1.6"/><circle cx="14.5" cy="3.5" r="1.6"/></svg>',
+  grid: '<svg viewBox="0 0 16 16"><rect x="1" y="2" width="6" height="3" rx=".8"/><rect x="8.5" y="2" width="6.5" height="3" rx=".8"/><rect x="1" y="6.5" width="9" height="3" rx=".8"/><rect x="11.5" y="6.5" width="3.5" height="3" rx=".8"/><rect x="1" y="11" width="4" height="3" rx=".8"/><rect x="6.5" y="11" width="8" height="3" rx=".8"/></svg>',
+  rows: '<svg viewBox="0 0 16 16"><rect x="1" y="2" width="3" height="3" rx=".8"/><rect x="5.5" y="2.4" width="9.5" height="2.2" rx=".8"/><rect x="1" y="6.5" width="3" height="3" rx=".8"/><rect x="5.5" y="6.9" width="9.5" height="2.2" rx=".8"/><rect x="1" y="11" width="3" height="3" rx=".8"/><rect x="5.5" y="11.4" width="9.5" height="2.2" rx=".8"/></svg>',
+};
+export function viewSwitch(items, current) {
+  return `<div class="viewseg" role="tablist">${items.map(it => it.href
+    ? `<a class="vs${it.key === current ? ' on' : ''}" href="${it.href}" role="tab">${ICONS[it.icon] || ''}<span>${esc(it.label)}</span></a>`
+    : `<button class="vs${it.key === current ? ' on' : ''}" type="button" role="tab" ${it.data}>${ICONS[it.icon] || ''}<span>${esc(it.label)}</span></button>`).join('')}</div>`;
+}

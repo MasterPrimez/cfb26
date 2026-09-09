@@ -1,4 +1,4 @@
-import { esc } from '../ui.js';
+import { esc, viewSwitch } from '../ui.js';
 import { darkLogo } from '../api.js';
 import { state } from '../state.js';
 
@@ -17,7 +17,7 @@ export function renderRankings(ctx) {
     </div>`).join('')}</div>
     ${p.others?.length ? `<div class="hr" style="margin:12px 0"></div><div class="sub" style="line-height:1.6">Others receiving votes: ${p.others.map(o => esc(o.team.nickname || o.team.name) + ' ' + Math.round(o.points)).join(', ')}</div>` : ''}
   </div>`;
-  return `<div class="toolbar"><div class="disp h1">Rankings</div><div class="sub">${polls.length} POLL${polls.length === 1 ? '' : 'S'} · CFP COMMITTEE RANKINGS APPEAR HERE ONCE RELEASED IN NOVEMBER</div><span class="spacer"></span><span class="label">View</span><a class="btn on" href="#/rankings">Polls</a><a class="btn" href="#/rankings?view=graph">Season graph</a></div>
+  return `<div class="toolbar"><div class="disp h1">Rankings</div><div class="sub">${polls.length} POLL${polls.length === 1 ? '' : 'S'} · CFP COMMITTEE RANKINGS APPEAR HERE ONCE RELEASED IN NOVEMBER</div><span class="spacer"></span>${viewSwitch([{ key: 'polls', label: 'Polls', icon: 'list', href: '#/rankings' }, { key: 'graph', label: 'Season graph', icon: 'chart', href: '#/rankings?view=graph' }], 'polls')}</div>
     <div class="rank-cols">${polls.map(col).join('')}</div>`;
 }
 

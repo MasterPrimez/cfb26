@@ -1,7 +1,7 @@
 // Rankings → "Season graph": a bump chart of every ranked team, week 1 → now. Emphasis form: highlighted teams in
 // color, everyone else gray until hovered/pinned. History comes from the Worker (/polls); falls back to what this
 // device has seen (localStorage) when accounts are off.
-import { esc } from '../ui.js';
+import { esc, viewSwitch } from '../ui.js';
 import { state } from '../state.js';
 import { API_URL } from '../config.js';
 import { logoUrl } from '../api.js';
@@ -37,9 +37,7 @@ export function renderRankGraph(ctx, hist, params) {
   const last = weeks[weeks.length - 1], prevW = weeks[weeks.length - 2];
   const pollBtns = Object.keys(hist.polls).map(k => `<a class="btn${k === pollKey ? ' on' : ''}" href="#/rankings?view=graph&poll=${k}&hl=${hl}">${POLL_NAMES[k] || k}</a>`).join('');
   const hlBtns = [['mine', 'My Teams'], ['top5', 'Top 5'], ['movers', 'Biggest movers'], ['none', 'None']].map(([k, l]) => `<a class="btn${k === hl ? ' on' : ''}" href="#/rankings?view=graph&poll=${pollKey}&hl=${k}">${l}</a>`).join('');
-  const toolbar = `<div class="toolbar"><div class="disp h1">Rankings</div><div class="sub">${esc(POLL_NAMES[pollKey] || pollKey).toUpperCase()} · WEEK ${weeks[0] || '–'} → ${last || '–'}</div><span class="spacer"></span>
-    <span class="label">View</span><a class="btn" href="#/rankings">Polls</a><a class="btn on" href="#/rankings?view=graph&poll=${pollKey}&hl=${hl}">Season graph</a>
-    <span class="sep"></span><span class="label">Poll</span>${pollBtns}<span class="sep"></span><span class="label">Highlight</span>${hlBtns}</div>`;
+  const toolbar = `<div class="toolbar"><div class="disp h1">Rankings</div><div class="sub">${esc(POLL_NAMES[pollKey] || pollKey).toUpperCase()} · WEEK ${weeks[0] || '–'} → ${last || '–'}</div><span class="spacer"></span>${viewSwitch([{ key: 'polls', label: 'Polls', icon: 'list', href: '#/rankings' }, { key: 'graph', label: 'Season graph', icon: 'chart', href: `#/rankings?view=graph&poll=${pollKey}&hl=${hl}` }], 'graph')}</div><div class="toolbar"><span class="label">Poll</span>${pollBtns}<span class="sep"></span><span class="label">Highlight</span>${hlBtns}</div>`;
   if (weeks.length < 2) return toolbar + `<div class="panel empty">The graph draws once two weeks of the ${esc(POLL_NAMES[pollKey] || pollKey)} poll have been recorded. ${weeks.length ? 'One week so far — check back after the next poll.' : 'No poll recorded yet.'}</div>`;
 
   // Which teams are emphasized.

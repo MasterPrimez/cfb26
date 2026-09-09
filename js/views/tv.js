@@ -1,4 +1,4 @@
-import { esc, filterBar, applyFilter, isMobile, gameRowMobile } from '../ui.js';
+import { esc, filterBar, applyFilter, isMobile, gameRowMobile, viewSwitch } from '../ui.js';
 import { fmtDay, dayKey, hourOf, tzLabel, state } from '../state.js';
 import { NETWORK_ORDER, networkClass, primaryNetwork, watchSummary } from '../networks.js';
 
@@ -14,7 +14,7 @@ export function renderTV(ctx, params) {
   const count = d => games.filter(g => dayKey(g.date) === d).length;
   const busiest = days.reduce((a, d) => (count(d) > count(a) ? d : a), days[0]);
   const day = params.day && days.includes(params.day) ? params.day : (days.includes(today) ? today : busiest);
-  const view = params.view || (isMobile() ? 'list' : 'grid');
+  const view = params.view || 'grid';
   const dayBtns = days.map(d => { const g = games.find(x => dayKey(x.date) === d); return `<button class="btn${d === day ? ' on' : ''}" data-day="${d}">${esc(fmtDay(g.date).split(',')[0].slice(0, 3))} ${esc(fmtDay(g.date).split(', ')[1] || '')}</button>`; }).join('');
 
   const dayGames = applyFilter(games.filter(g => dayKey(g.date) === day && !g.tbd));
@@ -63,13 +63,13 @@ export function renderTV(ctx, params) {
     </div>`).join('');
   }).join('');
 
-  return header() + `<div class="tvwrap"><div class="tvgrid">${head}${rows}</div></div>
+  return header() + `<div class="tvwrap" id="tvwrap"><div class="tvgrid" id="tvgrid">${head}${rows}</div></div>${isMobile() ? '<div class="tvzoom mono" id="tvzoom"><button type="button" data-zoom="-">−</button><span id="tvzoom-v">100%</span><button type="button" data-zoom="+">+</button><span class="hint">PINCH TO ZOOM</span></div>' : ''}
     <div class="legend"><span><i style="display:inline-block;width:10px;height:10px;border:1px solid var(--live);border-radius:2px;vertical-align:middle;margin-right:6px"></i>LIVE NOW</span><span><i style="display:inline-block;width:10px;height:10px;background:rgba(245,165,36,0.25);vertical-align:middle;margin-right:6px"></i>CURRENT HALF-HOUR</span><span>FINALS DIMMED · COLOR BAR = AWAY (TOP) / HOME (BOTTOM) · BLOCKS RUN ${GAME_HOURS} HRS AND EXTEND WHILE LIVE · TIMES IN ${tzLabel()}</span></div>`;
 
   function header() {
     const w = calendar.find(x => x.key === week);
     return `<div class="toolbar"><span class="label">Week</span><div class="weeks">${weekBtns}</div>${w && !w.current ? `<span class="sub" style="white-space:nowrap">${esc(w.label)} · ${esc(w.detail)}${w.past ? '' : ' · times/TV firm up ~6 days out'}</span>` : ''}</div>
-      <div class="toolbar"><div class="disp h2">${esc(fmtDay(new Date(day + 'T12:00:00')))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${dayBtns}</div><span class="sep"></span><span class="label">View</span><button class="btn${view === 'grid' ? ' on' : ''}" data-view="grid">Grid</button><button class="btn${view === 'list' ? ' on' : ''}" data-view="list">By network</button></div>
+      <div class="toolbar"><div class="disp h2">${esc(fmtDay(new Date(day + 'T12:00:00')))}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${dayBtns}</div><span class="spacer"></span>${viewSwitch([{ key: 'grid', label: 'Grid', icon: 'grid', data: 'data-view="grid"' }, { key: 'list', label: 'By network', icon: 'rows', data: 'data-view="list"' }], view)}</div>
       <div class="toolbar">${filterBar()}</div>`;
   }
 }
@@ -97,4 +97,22 @@ function slotLabel(h) {
   const hh = Math.floor(h) % 24; const m = h % 1 ? '30' : '00';
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return `${h12}:${m}<br><span>${hh < 12 ? 'AM' : 'PM'}</span>`;
+}
+
+// Mobile: pinch (or +/−) zooms the grid. Uses CSS zoom so layout/scroll stay correct.
+const ZKEY = 'cfb26.tvzoom.v1';
+export function mountTV(root) {
+  const grid = root.querySelector('#tvgrid'), wrap = root.querySelector('#tvwrap'); if (!grid || !wrap) return;
+  let z = 1; try { z = Number(localStorage.getItem(ZKEY)) || (isMobile() ? 0.8 : 1); } catch {}
+  const apply = () => { grid.style.zoom = z; const v = root.querySelector('#tvzoom-v'); if (v) v.textContent = Math.round(z * 100) + '%'; try { localStorage.setItem(ZKEY, String(z)); } catch {} };
+  const set = n => { z = Math.min(2.5, Math.max(0.45, n)); apply(); };
+  apply();
+  root.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => set(z * (b.dataset.zoom === '+' ? 1.2 : 1 / 1.2))));
+  let d0 = 0, z0 = 1;
+  const dist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  wrap.addEventListener('touchstart', e => { if (e.touches.length === 2) { d0 = dist(e); z0 = z; } }, { passive: true });
+  wrap.addEventListener('touchmove', e => { if (e.touches.length === 2 && d0) { e.preventDefault(); set(z0 * dist(e) / d0); } }, { passive: false });
+  wrap.addEventListener('touchend', () => { d0 = 0; });
+  let lastTap = 0;
+  wrap.addEventListener('touchend', e => { const t = Date.now(); if (t - lastTap < 300 && e.touches.length === 0 && !e.target.closest('.tv-block')) set(z === 1 ? 0.6 : 1); lastTap = t; });
 }
