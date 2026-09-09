@@ -165,17 +165,22 @@ function renderMyTeams() {
   el.hidden = route().name === 'home';
   const ids = state.prefs.teams;
   const d = ctx.directory;
+  let colors = {}; try { colors = JSON.parse(localStorage.getItem('cfb26.teamcolor.v1') || '{}'); } catch {}
   const chips = ids.map(id => {
     const t = d?.teams.find(x => x.id === id);
     const g = ctx.games.find(x => x.home.id === id || x.away.id === id);
     const me = g && (g.home.id === id ? g.home : g.away);
+    const opp = g && (g.home.id === id ? g.away : g.home);
     const name = t?.name || me?.name || `Team ${id}`;
     const logo = t?.logo || me?.logo || `https://a.espncdn.com/i/teamlogos/ncaa/500-dark/${id}.png`;
     const rec = me?.record || t?.overall || '';
+    if (me?.color && !/^#(333333|ffffff|000000)$/i.test(me.color)) colors[id] = me.color;
+    const color = colors[id] || '#3a3f47';
     let status = '';
-    if (g) status = g.state === 'in' ? `<span class="down mono" style="font-size:10px">● ${esc(g.detail)}</span>` : g.state === 'post' ? `<span class="mono muted" style="font-size:10px">${me.winner ? 'W' : 'L'} ${g.away.score}–${g.home.score}</span>` : `<span class="mono muted" style="font-size:10px">${g.tbd ? 'TBA' : fmtTime(g.date)}</span>`;
-    return `<a class="chip" href="#/team/${id}"><img src="${esc(logo)}" alt=""><span>${esc(name)}</span><span class="rec">${esc(rec)}</span>${status}</a>`;
+    if (g) status = `<span>${g.home.id === id ? 'vs' : 'at'} ${esc((opp.abbr || opp.name).toUpperCase())}</span>` + (g.state === 'in' ? `<span class="live">● ${esc(g.detail)}</span>` : g.state === 'post' ? `<span>${me.winner ? 'W' : 'L'} ${g.away.score}–${g.home.score}</span>` : `<span>${g.tbd ? 'TBA' : fmtTime(g.date)}</span>`);
+    return `<a class="slab" href="#/team/${id}" style="--c:${esc(color)}"><img class="bg" src="${esc(logo)}" alt="" aria-hidden="true"><img class="lg" src="${esc(logo)}" alt=""><div class="txt"><div class="nm">${esc(name)}</div><div class="rec"><b>${esc(rec)}</b>${status}</div></div></a>`;
   }).join('');
+  try { localStorage.setItem('cfb26.teamcolor.v1', JSON.stringify(colors)); } catch {}
   el.innerHTML = `<span class="label">My Teams</span>${chips}<button class="chip add" id="add-team" type="button">${ids.length ? '+ EDIT' : '+ PICK YOUR TEAMS'}</button>`;
 }
 
