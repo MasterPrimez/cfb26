@@ -121,3 +121,21 @@ export function viewSwitch(items, current) {
     ? `<a class="vs${it.key === current ? ' on' : ''}" href="${it.href}" role="tab">${ICONS[it.icon] || ''}<span>${esc(it.label)}</span></a>`
     : `<button class="vs${it.key === current ? ' on' : ''}" type="button" role="tab" ${it.data}>${ICONS[it.icon] || ''}<span>${esc(it.label)}</span></button>`).join('')}</div>`;
 }
+
+// Pinch-to-zoom (and +/−) for a wide element inside a scrolling wrapper. Uses CSS zoom so scroll extents stay right.
+export function pinchZoom(wrap, target, key, opts = {}) {
+  if (!wrap || !target) return;
+  let z = opts.initial ?? 1; try { z = Number(localStorage.getItem(key)) || z; } catch {}
+  const label = opts.label;
+  const base = opts.width ? wrap.clientWidth - (opts.pad || 0) : 0;
+  const apply = () => { if (opts.width) { target.style.width = Math.round(base * z) + 'px'; target.style.maxWidth = 'none'; } else target.style.zoom = z; if (label) label.textContent = Math.round(z * 100) + '%'; try { localStorage.setItem(key, String(z)); } catch {} };
+  const set = n => { z = Math.min(opts.max || 2.5, Math.max(opts.min || 0.45, n)); apply(); };
+  apply();
+  (opts.buttons || []).forEach(b => b.addEventListener('click', () => set(z * (b.dataset.zoom === '+' ? 1.2 : 1 / 1.2))));
+  let d0 = 0, z0 = 1, lastTap = 0;
+  const dist = e => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  wrap.addEventListener('touchstart', e => { if (e.touches.length === 2) { d0 = dist(e); z0 = z; } }, { passive: true });
+  wrap.addEventListener('touchmove', e => { if (e.touches.length === 2 && d0) { e.preventDefault(); set(z0 * dist(e) / d0); } }, { passive: false });
+  wrap.addEventListener('touchend', e => { d0 = 0; const t = Date.now(); if (t - lastTap < 300 && e.touches.length === 0 && !e.target.closest('a, button, [data-team]')) set(z === 1 ? (opts.alt || 0.6) : 1); lastTap = t; });
+}
+export function zoomControl(id) { return `<div class="tvzoom mono" id="${id}"><button type="button" data-zoom="-">−</button><span class="zv">100%</span><button type="button" data-zoom="+">+</button><span class="hint">PINCH TO ZOOM</span></div>`; }

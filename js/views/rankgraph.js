@@ -1,7 +1,7 @@
 // Rankings → "Season graph": a bump chart of every ranked team, week 1 → now. Emphasis form: highlighted teams in
 // color, everyone else gray until hovered/pinned. History comes from the Worker (/polls); falls back to what this
 // device has seen (localStorage) when accounts are off.
-import { esc, viewSwitch } from '../ui.js';
+import { esc, viewSwitch, isMobile, pinchZoom, zoomControl } from '../ui.js';
 import { state } from '../state.js';
 import { API_URL } from '../config.js';
 import { logoUrl } from '../api.js';
@@ -61,13 +61,15 @@ export function renderRankGraph(ctx, hist, params) {
   const labelL = [...teams].filter(([, m]) => m[weeks[0]]).map(([id, m]) => `<text x="${padL - 16}" y="${ys(m[weeks[0]]) + 4}" text-anchor="end" font-size="12" class="rg-lbl${emph.has(id) ? ' on' : ''}" data-team="${id}">${m[weeks[0]]}  ${esc(nameOf(id))}</text>`).join('');
   const labelR = [...teams].filter(([, m]) => m[last]).map(([id, m]) => { const d = (prevW && m[prevW] ? m[prevW] : 26) - m[last]; const arrow = d > 0 ? `<tspan fill="var(--win)"> ▲${d}</tspan>` : d < 0 ? `<tspan fill="var(--live)"> ▼${-d}</tspan>` : ''; return `<text x="${W - padR + 16}" y="${ys(m[last]) + 4}" font-size="12" class="rg-lbl${emph.has(id) ? ' on' : ''}" data-team="${id}">${m[last]}  ${esc(nameOf(id))}${arrow}</text>`; }).join('');
   const legend = emph.size ? [...emph].map(id => `<span><i style="background:${colorOf.get(id)}"></i>${esc(nameOf(id)).toUpperCase()}</span>`).join('') : '';
-  const html = toolbar + `<div class="panel rankgraph">
+  const html = toolbar + `<div class="panel rankgraph" id="rg-wrap">
       <div class="rg-legend mono">${legend}<span><i style="background:var(--line3)"></i>EVERYONE ELSE · HOVER OR TAP A NAME</span><span class="rg-note">RANK 1 AT TOP · A GAP MEANS THE TEAM DROPPED OUT OF THE 25</span></div>
       <svg viewBox="0 0 ${W} ${H}" class="rg-svg" id="rg-svg">${grid}${wkLabels}<g id="rg-lines">${series}</g>${labelL}${labelR}<g id="rg-hover"></g></svg>
       <div class="rg-tip mono" id="rg-tip" hidden></div>
-    </div>`;
+    </div>${isMobile() ? zoomControl('rgzoom') : ''}`;
   const mount = root => {
     const svg = root.querySelector('#rg-svg'); if (!svg) return;
+    const zc = root.querySelector('#rgzoom');
+    if (zc) pinchZoom(root.querySelector('#rg-wrap'), svg, 'cfb26.rgzoom.v1', { initial: 1.8, min: 0.8, max: 4, alt: 3, width: true, pad: 16, label: zc.querySelector('.zv'), buttons: [...zc.querySelectorAll('[data-zoom]')] });
     const tip = root.querySelector('#rg-tip');
     const pinned = new Set();
     const setHover = id => { svg.querySelectorAll('.rg-line, .rg-lbl').forEach(el => el.classList.toggle('hover', !!id && el.dataset.team === id)); };
