@@ -259,6 +259,8 @@ td img.mini { width: 20px; height: 20px; object-fit: contain; vertical-align: mi
   .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0 6px; color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
   .tabbar a svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; }
   .tabbar a.active { color: var(--amber); }
+  .tabbar a { position: relative; isolation: isolate; }
+  .tabbar a.active::before { content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle, rgba(245,165,36,.32) 0%, rgba(245,165,36,.12) 38%, rgba(245,165,36,0) 68%); z-index: -1; pointer-events: none; }
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .foot { padding-bottom: 20px; }
   .view { padding: 12px 12px 30px; }
