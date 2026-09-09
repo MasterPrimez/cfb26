@@ -8,6 +8,7 @@
 //   GET  /auth/me       (Bearer)                 → {user}
 //   GET  /prefs         (Bearer)                 → {prefs, updated_at}
 //   PUT  /prefs         (Bearer) {prefs}         → {ok, updated_at}
+//   GET  /polls                                  → {season, polls: {ap: {week: {teamId: {r,n,p}}}, usa: …, cfp: …}}
 //   GET  /config                                 → {googleClientId, adminEmails}
 //   POST /admin/stats   (Bearer) {password}      → stats   (admins only; password re-checked)
 //
@@ -18,6 +19,7 @@ const SESSION_DAYS = 90;
 const PBKDF2_ITER = 100000; // Cloudflare Workers cap PBKDF2 at 100k iterations
 
 export default {
+  async scheduled(_ev, env) { await syncPolls(env); },
   async fetch(req, env) {
     const origin = req.headers.get('Origin') || '';
     const cors = corsHeaders(origin, env);
@@ -42,6 +44,7 @@ async function route(req, env) {
 
   if (m === 'GET' && p === '/') return json({ ok: true, service: 'cfb26-api' });
   if (m === 'GET' && p === '/config') return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, adminEmails: admins(env) });
+  if (m === 'GET' && p === '/polls') { if (url.searchParams.has('sync')) await syncPolls(env); return pollHistory(env); }
 
   if (m === 'POST' && p === '/auth/signup') return signup(req, env);
   if (m === 'POST' && p === '/auth/login') return login(req, env);
@@ -142,6 +145,38 @@ async function requireSession(req, env) {
     try { await env.DB.prepare('update sessions set last_seen = ? where token_hash = ?').bind(now, tokenHash).run(); } catch {}
   }
   return { token_hash: row.token_hash, user: { id: row.id, email: row.email } };
+}
+
+// ---- polls --------------------------------------------------------------------
+
+const ESPN_RANKINGS = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/rankings';
+let lastSync = 0;
+// Pull the current polls from ESPN and store each (poll, week) once. A week's poll is never overwritten,
+// and the preseason poll (week 1) is reconstructed from the week-2 'previous' field if we missed it.
+async function syncPolls(env) {
+  if (Date.now() - lastSync < 10 * 60_000) return;
+  lastSync = Date.now();
+  let r; try { r = await (await fetch(ESPN_RANKINGS, { cf: { cacheTtl: 300 } })).json(); } catch { return; }
+  const season = r.season?.year || new Date().getFullYear();
+  for (const poll of r.rankings || []) {
+    const type = poll.type === 'ap' ? 'ap' : poll.type === 'usa' ? 'usa' : (poll.type === 'cfp' || /playoff/i.test(poll.name || '')) ? 'cfp' : null;
+    const week = Number(poll.occurrence?.number); if (!type || !week) continue;
+    const ranks = {}, prev = {};
+    for (const x of poll.ranks || []) { const id = String(x.team?.id); if (!id) continue; ranks[id] = { r: x.current, n: x.team.nickname || x.team.name, p: x.points }; if (x.previous) prev[id] = { r: x.previous, n: x.team.nickname || x.team.name }; }
+    if (!Object.keys(ranks).length) continue;
+    await env.DB.prepare('insert or ignore into polls (poll, week, season, ranks) values (?, ?, ?, ?)').bind(type, week, season, JSON.stringify(ranks)).run();
+    if (Object.keys(prev).length && week > 1) await env.DB.prepare('insert or ignore into polls (poll, week, season, ranks) values (?, ?, ?, ?)').bind(type, week - 1, season, JSON.stringify(prev)).run();
+  }
+}
+async function pollHistory(env) {
+  const season = (await env.DB.prepare('select max(season) s from polls').first())?.s;
+  if (!season) { await syncPolls(env); }
+  const rows = (await env.DB.prepare('select poll, week, season, ranks from polls where season = (select max(season) from polls) order by week').all()).results || [];
+  const polls = {};
+  rows.forEach(x => { (polls[x.poll] = polls[x.poll] || {})[x.week] = JSON.parse(x.ranks); });
+  const res = json({ season: rows[0]?.season || null, polls });
+  res.headers.set('Cache-Control', 'public, max-age=300');
+  return res;
 }
 
 // ---- admin ------------------------------------------------------------------

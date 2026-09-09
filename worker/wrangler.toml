@@ -15,3 +15,7 @@ ALLOWED_ORIGINS = "https://cfb26-master-primez.vercel.app,http://localhost:3000"
 GOOGLE_CLIENT_ID = ""
 # Who may open the private stats page (comma-separated emails). They re-enter their password to view it.
 ADMIN_EMAILS = "michael.stine@gmail.com"
+
+# Poll history: the Worker pulls ESPN's rankings itself every 6 hours (and on demand via GET /polls?sync=1).
+[triggers]
+crons = ["0 */6 * * *"]

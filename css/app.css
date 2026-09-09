@@ -494,3 +494,22 @@ html[data-theme="team"] .watch-card { background: linear-gradient(135deg, var(--
   .hero-bg .ph.r { -webkit-mask-image: linear-gradient(0deg, #000 35%, transparent 70%); mask-image: linear-gradient(0deg, #000 35%, transparent 70%); }
   .hero-bg .tint { background: linear-gradient(180deg, color-mix(in srgb, var(--cl) 40%, transparent), transparent 45%, transparent 55%, color-mix(in srgb, var(--cr) 40%, transparent)), linear-gradient(180deg, rgba(11,12,14,.65), rgba(11,12,14,.5) 45%, rgba(11,12,14,.94) 85%, var(--bg)); }
 }
+
+/* Rankings → season graph (bump chart) */
+.rankgraph { position: relative; padding: 14px 8px 6px; }
+.rg-legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 0 16px 8px; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); }
+.rg-legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.rg-legend .rg-note { margin-left: auto; }
+.rg-svg { width: 100%; height: auto; display: block; }
+.rg-svg .rg-lbl { fill: var(--muted); cursor: pointer; }
+.rg-svg .rg-lbl.on, .rg-svg .rg-lbl.hover, .rg-svg .rg-lbl.pin { fill: var(--text); font-weight: 600; }
+.rg-svg .rg-line { cursor: pointer; }
+.rg-svg .rg-line.hover path, .rg-svg .rg-line.pin path { stroke: var(--c); stroke-width: 3; }
+.rg-svg .rg-line.hover circle, .rg-svg .rg-line.pin circle { fill: var(--c); r: 5; }
+.rg-svg .rg-line.hover, .rg-svg .rg-line.pin { filter: drop-shadow(0 0 6px rgba(0,0,0,.6)); }
+.rg-svg .rg-line.hover ~ .rg-line, .rg-svg .rg-line.pin ~ .rg-line { pointer-events: auto; }
+.rg-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--bg); border: 1px solid var(--line3); border-radius: 6px; padding: 8px 10px; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.rg-tip .k { font-size: 9px; letter-spacing: 0.1em; color: var(--muted); }
+.rg-tip .v { font-family: var(--sans); font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.rg-tip .v img { width: 18px; height: 18px; object-fit: contain; } .rg-tip .v b { color: var(--amber); }
+@media (max-width: 700px) { .rankgraph { overflow-x: auto; } .rg-svg { min-width: 900px; } .rg-legend .rg-note { display: none; } }

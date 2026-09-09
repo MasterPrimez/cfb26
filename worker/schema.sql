@@ -20,3 +20,13 @@ create table if not exists profiles (
   prefs text not null default '{}',   -- JSON: teams, services, tz, layout, theme, focus, filter
   updated_at text not null default (datetime('now'))
 );
+
+-- Poll history (AP / Coaches / CFP), one row per poll per week, synced from ESPN by the Worker itself.
+create table if not exists polls (
+  poll text not null,          -- 'ap' | 'usa' | 'cfp'
+  week integer not null,
+  season integer not null,
+  ranks text not null,         -- JSON: { "<teamId>": { "r": rank, "n": "Ohio State", "p": points } }
+  fetched_at text not null default (datetime('now')),
+  primary key (poll, week, season)
+);

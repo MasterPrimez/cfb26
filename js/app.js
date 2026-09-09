@@ -6,6 +6,7 @@ import { SERVICES } from './networks.js';
 import { renderScores } from './views/scores.js';
 import { renderTV } from './views/tv.js';
 import { renderRankings } from './views/rankings.js';
+import { renderRankGraph, loadPollHistory } from './views/rankgraph.js';
 import { renderPlayoff, projectPlayoff } from './views/playoff.js';
 import { renderTeams } from './views/teams.js';
 import { renderStats } from './views/stats.js';
@@ -50,7 +51,7 @@ async function render(opts = {}) {
     switch (r.name) {
       case 'home': { const id = state.focusTeam; const d = id && ctx.directory ? await loadHome(ctx, id).catch(e => { console.warn('home', e); return null; }) : null; ctx.homeSig = homeSignature(ctx, d); const out = renderHome(ctx, d, { replay: !opts.quiet }); html = out.html; mount = out.mount; break; }
       case 'tv': html = renderTV({ ...ctx, week: ctx.weekKey }, r.params); break;
-      case 'rankings': html = renderRankings(ctx); break;
+      case 'rankings': { if (r.params.view === 'graph') { const hist = await loadPollHistory(ctx); const out = renderRankGraph(ctx, hist, r.params); html = out.html; mount = out.mount || null; } else html = renderRankings(ctx); break; }
       case 'playoff': html = renderPlayoff(ctx); break;
       case 'teams': html = renderTeams(ctx); break;
       case 'stats': { const out = renderStats(ctx); html = out.html; mount = out.mount || null; break; }
