@@ -578,7 +578,7 @@ html[data-theme="team"] .rank-badge { background: linear-gradient(180deg, var(--
 @media (max-width: 720px) { .tg-head .rg-legend { margin-left: 0; } }
 
 /* ===== Dashboard home ===== */
-.dash { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 96px; gap: 12px; }
+.dashboard { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 96px; gap: 12px; }
 .dash-focus { grid-column: 1 / -1; display: flex; gap: 8px; align-self: center; grid-row: auto; }
 .dash-focus .df { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 30px; border: 1px solid var(--line3); background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
 .dash-focus .df img { width: 22px; height: 22px; object-fit: contain; }
@@ -699,13 +699,13 @@ a.dt:hover, .dt[data-href]:hover { border-color: var(--line3); color: var(--text
 .dt.mov .mvr b { margin-left: auto; font-family: var(--mono); font-weight: 500; }
 .dt.mov .up { color: var(--win); } .dt.mov .dn { color: var(--live); } .dt.mov .new { color: var(--amber); }
 @media (max-width: 1100px) {
-  .dash { grid-auto-rows: auto; }
+  .dashboard { grid-auto-rows: auto; }
   .dt.hero { grid-column: 1 / -1; min-height: 300px; } .dt.lrail { grid-column: 1 / -1; }
   .dt.rank { grid-column: 1 / 5; min-height: 180px; } .dt.stride { grid-column: 5 / 13; min-height: 180px; }
   .dt.tv { grid-column: 1 / -1; } .dt.stand { grid-column: 1 / 6; } .dt.cfp { grid-column: 6 / 13; } .dt.mov { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {
-  .dash { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dashboard { grid-template-columns: 1fr 1fr; gap: 10px; }
   .dash-focus { overflow-x: auto; scrollbar-width: none; }
   .dt.hero { grid-column: 1 / -1; padding: 16px; min-height: 300px; }
   .dt.hero .mid { gap: 10px; }
