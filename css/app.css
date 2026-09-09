@@ -513,3 +513,22 @@ html[data-theme="team"] .watch-card { background: linear-gradient(135deg, var(--
 .rg-tip .v { font-family: var(--sans); font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 .rg-tip .v img { width: 18px; height: 18px; object-fit: contain; } .rg-tip .v b { color: var(--amber); }
 @media (max-width: 700px) { .rankgraph { overflow-x: auto; } .rg-svg { min-width: 900px; } .rg-legend .rg-note { display: none; } }
+
+/* Team page: rank badges */
+.rank-badges { display: flex; gap: 14px; margin-left: auto; align-self: center; }
+.rank-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 140px; height: 140px; border: 1px solid var(--line3); border-radius: 14px; background: linear-gradient(180deg, #15181c, #101215); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.rb-l { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.rb-n { font-family: var(--disp); font-size: 76px; line-height: 0.9; color: var(--text); margin-top: 4px; letter-spacing: 0.01em; }
+.rb-n .hash { font-size: 32px; color: var(--amber); margin-right: 2px; vertical-align: baseline; }
+.rb-n .nr { font-size: 44px; color: var(--dim); }
+.rank-badge.proj .hash { color: var(--muted); }
+.rb-s { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--muted); margin-top: 6px; text-transform: uppercase; }
+.stat-tiles.inline { margin: 12px 0 0; text-align: left; grid-template-columns: repeat(4, auto); gap: 22px; }
+.stat-tiles.inline .v { font-size: 28px; }
+html[data-theme="team"] .rank-badge { background: linear-gradient(180deg, var(--panel), var(--bg2)); }
+@media (max-width: 700px) {
+  .rank-badges { margin: 4px 0 0; width: 100%; justify-content: center; gap: 10px; }
+  .rank-badge { width: 0; flex: 1 1 0; max-width: 130px; height: 118px; }
+  .rb-n { font-size: 60px; } .rb-n .hash { font-size: 24px; }
+  .stat-tiles.inline { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+}

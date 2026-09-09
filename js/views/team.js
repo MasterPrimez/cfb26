@@ -13,8 +13,17 @@ export async function renderTeam(ctx, params) {
   const rec = team.record?.items?.find(i => i.type === 'total');
   const stat = n => rec?.stats?.find(s => s.name === n)?.value;
   const gp = stat('gamesPlayed') || 0;
-  const apRank = ctx.rankings?.ap?.ranks.find(r => String(r.team.id) === String(id))?.current;
+  const findIn = poll => poll?.ranks.find(r => String(r.team.id) === String(id));
+  const ap = findIn(ctx.rankings?.ap), co = findIn(ctx.rankings?.polls?.find(p => p.type === 'usa'));
+  const apRank = ap?.current;
   const cfpSeed = ctx.playoff?.field.findIndex(t => t.id === String(id));
+  const badge = (label, r, sub, cls = '') => `<div class="rank-badge${cls}"><div class="rb-l">${label}</div><div class="rb-n">${r ? `<span class="hash">#</span>${r}` : '<span class="nr">NR</span>'}</div><div class="rb-s">${sub}</div></div>`;
+  const move = r => !r || !r.previous ? (r ? '<span class="muted">NEW</span>' : '') : Number(r.trend) > 0 ? `<span class="up">▲${r.trend}</span>` : Number(r.trend) < 0 ? `<span class="down">▼${Math.abs(r.trend)}</span>` : '<span class="muted">—</span>';
+  const badges = `<div class="rank-badges">
+      ${badge('AP Top 25', ap?.current, ap ? `${Math.round(ap.points || 0).toLocaleString()} PTS ${move(ap)}` : 'UNRANKED')}
+      ${badge('Coaches', co?.current, co ? `${Math.round(co.points || 0).toLocaleString()} PTS ${move(co)}` : 'UNRANKED')}
+      ${cfpSeed >= 0 ? badge('CFP Seed', cfpSeed + 1, ctx.playoff.official ? 'COMMITTEE' : 'PROJECTED', ctx.playoff.official ? '' : ' proj') : ''}
+    </div>`;
 
   const events = (sched.events || []).map(e => normSched(e, id)).sort((a, b) => a.date - b.date);
   const next = events.find(e => e.state !== 'post');
@@ -34,16 +43,17 @@ export async function renderTeam(ctx, params) {
   return `<div class="team-head">
       <img src="${esc(logo)}" alt="">
       <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
-        <div class="mono amber" style="font-size:12px">${apRank ? `#${apRank} AP · ` : ''}${cfpSeed >= 0 ? `CFP SEED ${cfpSeed + 1} (${ctx.playoff.official ? 'COMMITTEE' : 'PROJ'}) · ` : ''}${esc(conf?.name || '')}</div>
+        <div class="mono amber" style="font-size:12px">${esc(conf?.name || '')}${team.location ? ' · ' + esc(team.location).toUpperCase() : ''}</div>
         <div class="disp big">${esc(team.displayName)}</div>
-        <div class="sub">${esc(team.location || '')}${team.standingSummary ? ' · ' + esc(team.standingSummary) : ''}${next ? ' · Next: ' + (next.home ? 'vs ' : 'at ') + esc(next.opp.name) + ' ' + fmtShortDate(next.date) : ''}</div>
+        <div class="sub">${esc(rec?.summary || dirTeam?.overall || '0-0')}${team.standingSummary ? ' · ' + esc(team.standingSummary).toUpperCase() : ''}${next ? ' · NEXT: ' + (next.home ? 'VS ' : 'AT ') + esc(next.opp.name).toUpperCase() + ' ' + fmtShortDate(next.date).toUpperCase() : ''}</div>
+        <div class="stat-tiles inline">
+          <div><div class="label">Record</div><div class="v">${esc(rec?.summary || dirTeam?.overall || '0-0')}</div></div>
+          <div><div class="label">Conf</div><div class="v">${esc(dirTeam?.confRec || '0-0')}</div></div>
+          <div><div class="label">PF / G</div><div class="v">${gp ? (stat('pointsFor') / gp).toFixed(1) : '—'}</div></div>
+          <div><div class="label">PA / G</div><div class="v">${gp ? (stat('pointsAgainst') / gp).toFixed(1) : '—'}</div></div>
+        </div>
       </div>
-      <div class="stat-tiles">
-        <div><div class="label">Record</div><div class="v">${esc(rec?.summary || dirTeam?.overall || '0-0')}</div></div>
-        <div><div class="label">Conf</div><div class="v">${esc(dirTeam?.confRec || '0-0')}</div></div>
-        <div><div class="label">PF / G</div><div class="v">${gp ? (stat('pointsFor') / gp).toFixed(1) : '—'}</div></div>
-        <div><div class="label">PA / G</div><div class="v">${gp ? (stat('pointsAgainst') / gp).toFixed(1) : '—'}</div></div>
-      </div>
+      ${badges}
       <button class="btn${state.isMine(id) ? ' on' : ' btn-amber'}" data-star="${id}" type="button" style="align-self:flex-start">${state.isMine(id) ? '★ In My Teams' : '☆ Add to My Teams'}</button>
     </div>
     <div class="grid-main">
