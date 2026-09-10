@@ -10,7 +10,7 @@ export function renderDash(ctx, d) {
   const teams = state.prefs.teams;
   const dir = ctx.directory;
   if (!teams.length || !d) {
-    return { html: `<div class="dash"><div class="dt hero empty" style="grid-column:1/-1"><div class="k">WELCOME</div><div class="disp big">Pick your team.</div><div class="lede">Choose the teams you follow and this screen becomes their dashboard: the game right now, the odds, the polls, TV, standings and the playoff picture.</div><div><button class="btn primary" id="add-team-2" type="button">Choose my teams</button></div></div></div>`, mount: null };
+    return { html: `<div class="dashboard"><div class="dt hero empty" style="grid-column:1/-1"><div class="k">WELCOME</div><div class="disp big">Pick your team.</div><div class="lede">Choose the teams you follow and this screen becomes their dashboard: the game right now, the odds, the polls, TV, standings and the playoff picture.</div><div><button class="btn primary" id="add-team-2" type="button">Choose my teams</button></div></div></div>`, mount: null };
   }
   const { team, opp, next, game, past, prob, apRank, cfpSeed, cfpOfficial, confPlace, rankHist, events } = d;
   const mine = new Set(teams);
@@ -93,7 +93,7 @@ export function renderDash(ctx, d) {
   const movers = (ctx.rankings?.ap?.ranks || []).map(r => ({ id: String(r.team.id), name: r.team.nickname || r.team.name, logo: dir?.teams.find(t => t.id === String(r.team.id))?.logo || logoUrl(r.team.id), d: r.previous ? Number(r.trend) || 0 : 99 })).filter(r => r.d !== 0).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 4);
   const movTile = `<a class="dt mov pad" href="#/rankings"><div class="k">POLL MOVERS<span class="more">RANKINGS</span></div>${movers.map(m => `<div class="mvr"><img src="${esc(m.logo)}" alt="">${esc(m.name)}<b class="${m.d === 99 ? 'new' : m.d > 0 ? 'up' : 'dn'}">${m.d === 99 ? 'NEW' : m.d > 0 ? '▲' + m.d : '▼' + (-m.d)}</b></div>`).join('') || '<div class="muted mono" style="font-size:11px">No movement yet.</div>'}</a>`;
 
-  const html = `<div class="dash">${focus}${hero}<div class="dt lrail"><div class="k pad-h">LIVE NOW · MY TEAMS &amp; TOP 25<a class="more" href="#/scores">ALL SCORES</a></div><div class="lg">${rail}</div></div>${rankTile}${strideTile}${tvTile}${standTile}${cfpTile}${movTile}</div>`;
+  const html = `<div class="dashboard">${focus}${hero}<div class="dt lrail"><div class="k pad-h">LIVE NOW · MY TEAMS &amp; TOP 25<a class="more" href="#/scores">ALL SCORES</a></div><div class="lg">${rail}</div></div>${rankTile}${strideTile}${tvTile}${standTile}${cfpTile}${movTile}<div class="dash-foot mono"><span>Something you wish this did?</span><a href="mailto:michael.stine@gmail.com?subject=CFB%2F26%20feature%20request">Request a feature →</a><span class="sep">·</span><a href="mailto:michael.stine@gmail.com?subject=CFB%2F26%20feedback">Send feedback</a></div></div>`;
   return { html, mount: mountDash };
 }
 

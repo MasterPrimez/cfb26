@@ -714,6 +714,9 @@ a.dt:hover, .dt[data-href]:hover { border-color: var(--line3); color: var(--text
 .dt.mov .mvr img { width: 16px; height: 16px; object-fit: contain; }
 .dt.mov .mvr b { margin-left: auto; font-family: var(--mono); font-weight: 500; }
 .dt.mov .up { color: var(--win); } .dt.mov .dn { color: var(--live); } .dt.mov .new { color: var(--amber); }
+.dash-foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 0 4px; font-size: 11px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.dash-foot a { color: var(--amber); }
+.dash-foot .sep { color: var(--dim); }
 @media (max-width: 1100px) {
   .dashboard { grid-auto-rows: auto; }
   .dt.hero { grid-column: 1 / -1; min-height: 300px; } .dt.lrail { grid-column: 1 / -1; }
