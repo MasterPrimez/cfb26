@@ -5,16 +5,24 @@ import { state } from '../state.js';
 export function renderRankings(ctx) {
   const polls = ctx.rankings?.polls || [];
   if (!polls.length) return '<div class="panel empty">Rankings unavailable right now.</div>';
+  let cached = {}; try { cached = JSON.parse(localStorage.getItem('cfb26.teamcolor.v1') || '{}'); } catch {}
+  const colorOf = t => {
+    const id = String(t.id);
+    const fromGame = (ctx.games || []).map(g => g.home.id === id ? g.home : g.away.id === id ? g.away : null).find(Boolean)?.color;
+    const c = (t.color ? '#' + String(t.color).replace('#', '') : null) || fromGame || cached[id];
+    return c && !/^#(333333|ffffff|000000)$/i.test(c) ? c : '#3a3f47';
+  };
   const col = p => `<div class="panel panel-pad">
     <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px"><div class="disp h3">${esc(p.name)}</div><div class="sub">${esc(p.occurrence?.displayValue || '')}${p.date ? ' · ' + esc(p.date) : ''}</div></div>
-    <div class="rank-list">${p.ranks.map(r => `<div class="rank-row">
+    <div class="rk-list">${p.ranks.map(r => { const logo = darkLogo(r.team.logo); return `<a class="rkb${state.isMine(r.team.id) ? ' mine' : ''}" href="#/team/${r.team.id}" style="--c:${esc(colorOf(r.team))}">
+      <img class="ghost" src="${esc(logo)}" alt="" aria-hidden="true" loading="lazy">
       <span class="n${r.current <= 12 ? ' top' : ''}">${r.current}</span>
-      <img src="${esc(darkLogo(r.team.logo))}" alt="" loading="lazy">
-      <a class="nm" href="#/team/${r.team.id}"${state.isMine(r.team.id) ? ' style="color:var(--amber)"' : ''}>${esc(r.team.nickname)} <span class="muted" style="font-size:12px">${esc(r.team.name)}</span></a>
+      <img class="lg" src="${esc(logo)}" alt="" loading="lazy">
+      <span class="nm">${esc(r.team.nickname)} <small>${esc(r.team.name)}</small></span>
       <span class="rec">${esc(r.recordSummary || '')}</span>
-      <span class="rec" style="width:44px;text-align:right">${r.points ? Math.round(r.points) : ''}</span>
+      <span class="pts">${r.points ? Math.round(r.points) : ''}</span>
       <span class="tr ${trendClass(r)}">${trendText(r)}</span>
-    </div>`).join('')}</div>
+    </a>`; }).join('')}</div>
     ${p.others?.length ? `<div class="hr" style="margin:12px 0"></div><div class="sub" style="line-height:1.6">Others receiving votes: ${p.others.map(o => esc(o.team.nickname || o.team.name) + ' ' + Math.round(o.points)).join(', ')}</div>` : ''}
   </div>`;
   return `<div class="toolbar"><div class="disp h1">Rankings</div><div class="sub">${polls.length} POLL${polls.length === 1 ? '' : 'S'} · CFP COMMITTEE RANKINGS APPEAR HERE ONCE RELEASED IN NOVEMBER</div><span class="spacer"></span>${viewSwitch([{ key: 'polls', label: 'Polls', icon: 'list', href: '#/rankings' }, { key: 'graph', label: 'Season graph', icon: 'chart', href: '#/rankings?view=graph' }], 'polls')}</div>
