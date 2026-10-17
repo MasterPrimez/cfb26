@@ -26,7 +26,9 @@ export const api = {
   rankings() { return getJSON(`${SITE}/rankings`, 5 * 60_000); },
   // Standings doubles as the FBS team directory (138 teams grouped by conference, with logos).
   standings(season) { return getJSON(`${V2}/standings?season=${season}`, 10 * 60_000); },
-  team(id) { return getJSON(`${SITE}/teams/${id}`, 5 * 60_000); },
+  // Trailing slash matters: ESPN serves /teams/{id} without Access-Control-Allow-Origin (browser blocks it),
+  // but /teams/{id}/ returns the same payload with CORS. Oct 2026.
+  team(id) { return getJSON(`${SITE}/teams/${id}/`, 5 * 60_000); },
   schedule(id) { return getJSON(`${SITE}/teams/${id}/schedule`, 2 * 60_000); },
   summary(eventId) { return getJSON(`${SITE}/summary?event=${eventId}`, 30_000); },
 };
