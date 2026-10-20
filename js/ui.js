@@ -46,10 +46,10 @@ export function gameRow(g) {
   const net = primaryNetwork(g.networks);
   const venue = g.venue ? `${esc(g.venue.name)}${g.venue.city ? ' · ' + esc(g.venue.city) + ', ' + esc(g.venue.state || '') : ''}` : '';
   const score = g.state === 'pre' ? '<span class="muted">—</span>' : `${g.away.score ?? ''}–${g.home.score ?? ''}`;
-  const tm = t => `${t.rank ? `<span class="amber mono" style="font-size:11px">#${t.rank}</span> ` : ''}<span${state.isMine(t.id) ? ' class="mine"' : ''}>${esc(t.name)}</span>`;
+  const tm = t => `<span class="rtm">${t.logo ? `<img src="${esc(t.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}${t.rank ? `<span class="amber mono" style="font-size:11px">#${t.rank}</span>` : ''}<span${state.isMine(t.id) ? ' class="mine"' : ''}>${esc(t.name)}</span></span>`;
   return `<tr class="rowlink" data-game="${g.id}">
     <td>${statusBadge(g)}</td>
-    <td>${tm(g.away)} <span class="muted">${g.neutral ? 'vs' : 'at'}</span> ${tm(g.home)}</td>
+    <td class="mu">${tm(g.away)} <span class="muted">${g.neutral ? 'vs' : 'at'}</span> ${tm(g.home)}</td>
     <td class="mono">${score}</td>
     <td class="muted">${venue}</td>
     <td class="mono">${esc(net)}</td>

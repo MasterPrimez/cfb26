@@ -77,6 +77,9 @@ input, select, textarea { font-size: 16px; }
 .mrow:last-child { border-bottom: none; }
 .mrow .st { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; grid-row: 1 / span 2; align-self: center; }
 .mrow .st.live { color: var(--live); }
+.rows td.mu { white-space: nowrap; }
+.rtm { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+.rtm img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
 .mrow .tm { display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; }
 .mrow .tm img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
 .mrow .tm .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
